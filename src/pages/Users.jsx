@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
+import Modal from "../components/Modal.jsx";
 
 const ROLE_OPTIONS = [
   { value: "picker", label: "Picker" },
@@ -9,6 +10,28 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Admin (mobile)" },
   { value: "super_admin", label: "Super Admin (web panel)" },
 ];
+
+const UNSCOPED_ROLES = ["admin", "super_admin"];
+
+const empty = {
+  name: "",
+  email: "",
+  phone: "",
+  password: "",
+  role: "picker",
+  store_codes: "",
+  project_code: "RET3163",
+  is_active: true,
+};
+
+function Field({ label, children, span }) {
+  return (
+    <div className={span === 2 ? "col-span-2" : ""}>
+      <label className="text-xs text-gray-600">{label}</label>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -18,6 +41,10 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState("");
   const [storeFilter, setStoreFilter] = useState("");
   const [q, setQ] = useState("");
+
+  const [modal, setModal] = useState({ open: false, mode: "create", form: empty });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitErr, setSubmitErr] = useState("");
 
   async function load() {
     setLoading(true);
@@ -52,11 +79,89 @@ export default function Users() {
     picker: users.filter((u) => u.role === "picker"),
   }), [users]);
 
+  function openCreate() {
+    setSubmitErr("");
+    setModal({ open: true, mode: "create", form: { ...empty } });
+  }
+
+  function openEdit(u) {
+    setSubmitErr("");
+    setModal({
+      open: true,
+      mode: "edit",
+      form: {
+        _id: u._id,
+        name: u.name || "",
+        email: u.email || "",
+        phone: u.phone || "",
+        password: "",
+        role: u.role,
+        store_codes: (u.store_codes || []).join(", "),
+        project_code: u.project_code || "RET3163",
+        is_active: !!u.is_active,
+      },
+    });
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitErr("");
+    try {
+      const { form, mode } = modal;
+      const payload = {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        role: form.role,
+        project_code: form.project_code.trim(),
+        is_active: form.is_active,
+        store_codes: UNSCOPED_ROLES.includes(form.role)
+          ? []
+          : form.store_codes
+              .split(",")
+              .map((s) => s.trim().toUpperCase())
+              .filter(Boolean),
+      };
+      if (mode === "create") {
+        payload.email = form.email.trim().toLowerCase();
+        payload.password = form.password;
+        await api.post("/super-admin/users", payload);
+      } else {
+        if (form.password) payload.password = form.password;
+        await api.patch(`/super-admin/users/${form._id}`, payload);
+      }
+      setModal({ open: false, mode: "create", form: empty });
+      load();
+    } catch (e2) {
+      setSubmitErr(e2.response?.data?.message || e2.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onDelete(u) {
+    if (!confirm(`Delete user "${u.name}" (${u.email})? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/super-admin/users/${u._id}`);
+      load();
+    } catch (e) {
+      alert(e.response?.data?.message || e.message);
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="Users"
         subtitle="Manage pickers, store managers, and super admins"
+        actions={
+          <button
+            onClick={openCreate}
+            className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            + Add user
+          </button>
+        }
       />
       <div className="p-8 space-y-4">
         <div className="flex flex-wrap gap-3 items-end">
@@ -96,10 +201,7 @@ export default function Users() {
                 placeholder="name, email or phone…"
                 className="flex-1 border rounded-md px-3 py-1.5 text-sm"
               />
-              <button
-                onClick={load}
-                className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50"
-              >
+              <button onClick={load} className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50">
                 Search
               </button>
             </div>
@@ -125,6 +227,7 @@ export default function Users() {
                   <th className="text-left px-4 py-2">Role</th>
                   <th className="text-left px-4 py-2">Stores</th>
                   <th className="text-left px-4 py-2">Status</th>
+                  <th className="text-right px-4 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,7 +236,7 @@ export default function Users() {
                   if (!list.length) return [];
                   return [
                     <tr key={`h-${role}`} className="bg-gray-50/50">
-                      <td colSpan="6" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
+                      <td colSpan="7" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
                         {role.replace("_", " ")} ({list.length})
                       </td>
                     </tr>,
@@ -149,13 +252,17 @@ export default function Users() {
                         <td className="px-4 py-2">
                           <Badge value={u.is_active ? "active" : "inactive"} />
                         </td>
+                        <td className="px-4 py-2 text-right">
+                          <button onClick={() => openEdit(u)} className="text-brand-600 hover:underline text-sm mr-3">Edit</button>
+                          <button onClick={() => onDelete(u)} className="text-red-600 hover:underline text-sm">Delete</button>
+                        </td>
                       </tr>
                     )),
                   ];
                 })}
                 {!users.length && (
                   <tr>
-                    <td colSpan="6" className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan="7" className="px-4 py-10 text-center text-gray-500">
                       No users match the filters.
                     </td>
                   </tr>
@@ -165,6 +272,57 @@ export default function Users() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={modal.open}
+        onClose={() => setModal({ ...modal, open: false })}
+        title={modal.mode === "create" ? "Add user" : "Edit user"}
+        wide
+        footer={
+          <>
+            <button type="button" onClick={() => setModal({ ...modal, open: false })} className="px-3 py-1.5 rounded-md border bg-white text-sm">Cancel</button>
+            <button form="user-form" type="submit" disabled={submitting} className="px-3 py-1.5 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-sm disabled:opacity-60">
+              {submitting ? "Saving…" : "Save"}
+            </button>
+          </>
+        }
+      >
+        <form id="user-form" onSubmit={onSubmit} className="grid grid-cols-2 gap-4">
+          <Field label="Name">
+            <input required value={modal.form.name} onChange={(e) => setModal({ ...modal, form: { ...modal.form, name: e.target.value } })} className="input" />
+          </Field>
+          <Field label="Phone">
+            <input required value={modal.form.phone} onChange={(e) => setModal({ ...modal, form: { ...modal.form, phone: e.target.value } })} className="input" />
+          </Field>
+          <Field label="Email">
+            <input required type="email" disabled={modal.mode === "edit"} value={modal.form.email} onChange={(e) => setModal({ ...modal, form: { ...modal.form, email: e.target.value } })} className="input disabled:bg-gray-100" />
+          </Field>
+          <Field label={modal.mode === "create" ? "Password" : "Password (leave blank to keep)"}>
+            <input type="password" required={modal.mode === "create"} value={modal.form.password} onChange={(e) => setModal({ ...modal, form: { ...modal.form, password: e.target.value } })} className="input" />
+          </Field>
+          <Field label="Role">
+            <select value={modal.form.role} onChange={(e) => setModal({ ...modal, form: { ...modal.form, role: e.target.value } })} className="input">
+              {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Project code">
+            <input value={modal.form.project_code} onChange={(e) => setModal({ ...modal, form: { ...modal.form, project_code: e.target.value } })} className="input" />
+          </Field>
+          <Field label={UNSCOPED_ROLES.includes(modal.form.role) ? "Store codes (ignored for this role)" : "Store codes (comma-separated)"} span={2}>
+            <input disabled={UNSCOPED_ROLES.includes(modal.form.role)} value={modal.form.store_codes} onChange={(e) => setModal({ ...modal, form: { ...modal.form, store_codes: e.target.value } })} className="input disabled:bg-gray-100" placeholder="STR001, STR002" />
+          </Field>
+          <Field label="Active" span={2}>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={modal.form.is_active} onChange={(e) => setModal({ ...modal, form: { ...modal.form, is_active: e.target.checked } })} />
+              User is active
+            </label>
+          </Field>
+          {submitErr && (
+            <div className="col-span-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{submitErr}</div>
+          )}
+        </form>
+        <style>{`.input { width:100%; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:14px; background:white; outline:none; } .input:focus { border-color:#2563eb; box-shadow:0 0 0 2px rgb(37 99 235/.2); }`}</style>
+      </Modal>
     </>
   );
 }
