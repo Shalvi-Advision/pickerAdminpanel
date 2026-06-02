@@ -22,20 +22,14 @@ const empty = {
   store_codes: "",
   project_code: "RET3163",
   is_active: true,
+  capability_overrides: {}, // capKey -> true (allow) / false (deny); absent = inherit
 };
-
-function Field({ label, children, span }) {
-  return (
-    <div className={span === 2 ? "col-span-2" : ""}>
-      <label className="text-xs text-gray-600">{label}</label>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
-}
 
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [stores, setStores] = useState([]);
+  const [catalog, setCatalog] = useState([]); // [{ key, label, group, applies_to }]
+  const [roleDefaults, setRoleDefaults] = useState({}); // { role: { capKey: bool } }
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -54,12 +48,15 @@ export default function Users() {
       if (roleFilter) params.role = roleFilter;
       if (storeFilter) params.store_code = storeFilter;
       if (q) params.q = q;
-      const [u, s] = await Promise.all([
+      const [u, s, c] = await Promise.all([
         api.get("/super-admin/users", { params }),
         api.get("/super-admin/stores"),
+        api.get("/super-admin/capabilities"),
       ]);
       setUsers(u.data.data);
       setStores(s.data.data);
+      setCatalog(c.data.data.catalog);
+      setRoleDefaults(c.data.data.roles);
     } catch (e) {
       setErr(e.response?.data?.message || e.message);
     } finally {
@@ -72,18 +69,19 @@ export default function Users() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleFilter, storeFilter]);
 
-  const grouped = useMemo(() => ({
-    super_admin: users.filter((u) => u.role === "super_admin"),
-    admin: users.filter((u) => u.role === "admin"),
-    manager: users.filter((u) => u.role === "manager"),
-    picker: users.filter((u) => u.role === "picker"),
-  }), [users]);
+  const grouped = useMemo(() => {
+    return {
+      super_admin: users.filter((u) => u.role === "super_admin"),
+      admin: users.filter((u) => u.role === "admin"),
+      manager: users.filter((u) => u.role === "manager"),
+      picker: users.filter((u) => u.role === "picker"),
+    };
+  }, [users]);
 
   function openCreate() {
     setSubmitErr("");
     setModal({ open: true, mode: "create", form: { ...empty } });
   }
-
   function openEdit(u) {
     setSubmitErr("");
     setModal({
@@ -99,7 +97,19 @@ export default function Users() {
         store_codes: (u.store_codes || []).join(", "),
         project_code: u.project_code || "RET3163",
         is_active: !!u.is_active,
+        capability_overrides: { ...(u.capability_overrides || {}) },
       },
+    });
+  }
+
+  // next: "inherit" | "allow" | "deny". Inherit removes the key entirely so the
+  // payload only carries explicit allow/deny decisions.
+  function setOverride(capKey, next) {
+    setModal((m) => {
+      const ov = { ...(m.form.capability_overrides || {}) };
+      if (next === "inherit") delete ov[capKey];
+      else ov[capKey] = next === "allow";
+      return { ...m, form: { ...m.form, capability_overrides: ov } };
     });
   }
 
@@ -121,6 +131,9 @@ export default function Users() {
               .split(",")
               .map((s) => s.trim().toUpperCase())
               .filter(Boolean),
+        // super_admin is always-all; never send overrides for it.
+        capability_overrides:
+          form.role === "super_admin" ? {} : form.capability_overrides || {},
       };
       if (mode === "create") {
         payload.email = form.email.trim().toLowerCase();
@@ -174,7 +187,9 @@ export default function Users() {
             >
               <option value="">All roles</option>
               {ROLE_OPTIONS.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
               ))}
             </select>
           </div>
@@ -187,7 +202,9 @@ export default function Users() {
             >
               <option value="">All stores</option>
               {stores.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>
@@ -201,7 +218,10 @@ export default function Users() {
                 placeholder="name, email or phone…"
                 className="flex-1 border rounded-md px-3 py-1.5 text-sm"
               />
-              <button onClick={load} className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50">
+              <button
+                onClick={load}
+                className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50"
+              >
                 Search
               </button>
             </div>
@@ -253,8 +273,18 @@ export default function Users() {
                           <Badge value={u.is_active ? "active" : "inactive"} />
                         </td>
                         <td className="px-4 py-2 text-right">
-                          <button onClick={() => openEdit(u)} className="text-brand-600 hover:underline text-sm mr-3">Edit</button>
-                          <button onClick={() => onDelete(u)} className="text-red-600 hover:underline text-sm">Delete</button>
+                          <button
+                            onClick={() => openEdit(u)}
+                            className="text-brand-600 hover:underline text-sm mr-3"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => onDelete(u)}
+                            className="text-red-600 hover:underline text-sm"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     )),
@@ -280,8 +310,19 @@ export default function Users() {
         wide
         footer={
           <>
-            <button type="button" onClick={() => setModal({ ...modal, open: false })} className="px-3 py-1.5 rounded-md border bg-white text-sm">Cancel</button>
-            <button form="user-form" type="submit" disabled={submitting} className="px-3 py-1.5 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-sm disabled:opacity-60">
+            <button
+              type="button"
+              onClick={() => setModal({ ...modal, open: false })}
+              className="px-3 py-1.5 rounded-md border bg-white text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              form="user-form"
+              type="submit"
+              disabled={submitting}
+              className="px-3 py-1.5 rounded-md bg-brand-600 hover:bg-brand-700 text-white text-sm disabled:opacity-60"
+            >
               {submitting ? "Saving…" : "Save"}
             </button>
           </>
@@ -289,40 +330,215 @@ export default function Users() {
       >
         <form id="user-form" onSubmit={onSubmit} className="grid grid-cols-2 gap-4">
           <Field label="Name">
-            <input required value={modal.form.name} onChange={(e) => setModal({ ...modal, form: { ...modal.form, name: e.target.value } })} className="input" />
+            <input
+              required
+              value={modal.form.name}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, name: e.target.value } })
+              }
+              className="input"
+            />
           </Field>
           <Field label="Phone">
-            <input required value={modal.form.phone} onChange={(e) => setModal({ ...modal, form: { ...modal.form, phone: e.target.value } })} className="input" />
+            <input
+              required
+              value={modal.form.phone}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, phone: e.target.value } })
+              }
+              className="input"
+            />
           </Field>
           <Field label="Email">
-            <input required type="email" disabled={modal.mode === "edit"} value={modal.form.email} onChange={(e) => setModal({ ...modal, form: { ...modal.form, email: e.target.value } })} className="input disabled:bg-gray-100" />
+            <input
+              required
+              type="email"
+              disabled={modal.mode === "edit"}
+              value={modal.form.email}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, email: e.target.value } })
+              }
+              className="input disabled:bg-gray-100"
+            />
           </Field>
           <Field label={modal.mode === "create" ? "Password" : "Password (leave blank to keep)"}>
-            <input type="password" required={modal.mode === "create"} value={modal.form.password} onChange={(e) => setModal({ ...modal, form: { ...modal.form, password: e.target.value } })} className="input" />
+            <input
+              type="password"
+              required={modal.mode === "create"}
+              value={modal.form.password}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, password: e.target.value } })
+              }
+              className="input"
+            />
           </Field>
           <Field label="Role">
-            <select value={modal.form.role} onChange={(e) => setModal({ ...modal, form: { ...modal.form, role: e.target.value } })} className="input">
-              {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            <select
+              value={modal.form.role}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, role: e.target.value } })
+              }
+              className="input"
+            >
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Project code">
-            <input value={modal.form.project_code} onChange={(e) => setModal({ ...modal, form: { ...modal.form, project_code: e.target.value } })} className="input" />
+            <input
+              value={modal.form.project_code}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, project_code: e.target.value } })
+              }
+              className="input"
+            />
           </Field>
-          <Field label={UNSCOPED_ROLES.includes(modal.form.role) ? "Store codes (ignored for this role)" : "Store codes (comma-separated)"} span={2}>
-            <input disabled={UNSCOPED_ROLES.includes(modal.form.role)} value={modal.form.store_codes} onChange={(e) => setModal({ ...modal, form: { ...modal.form, store_codes: e.target.value } })} className="input disabled:bg-gray-100" placeholder="STR001, STR002" />
+          <Field
+            label={
+              UNSCOPED_ROLES.includes(modal.form.role)
+                ? `Store codes (${modal.form.role.replace("_", " ")} sees all stores, ignored)`
+                : "Store codes (comma-separated, e.g. STR001, STR002)"
+            }
+            span={2}
+          >
+            <input
+              disabled={UNSCOPED_ROLES.includes(modal.form.role)}
+              value={modal.form.store_codes}
+              onChange={(e) =>
+                setModal({ ...modal, form: { ...modal.form, store_codes: e.target.value } })
+              }
+              className="input disabled:bg-gray-100"
+              placeholder="STR001, STR002"
+            />
           </Field>
           <Field label="Active" span={2}>
             <label className="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={modal.form.is_active} onChange={(e) => setModal({ ...modal, form: { ...modal.form, is_active: e.target.checked } })} />
+              <input
+                type="checkbox"
+                checked={modal.form.is_active}
+                onChange={(e) =>
+                  setModal({
+                    ...modal,
+                    form: { ...modal.form, is_active: e.target.checked },
+                  })
+                }
+              />
               User is active
             </label>
           </Field>
+          {modal.form.role !== "super_admin" ? (
+            <div className="col-span-2">
+              <details className="border rounded-md bg-gray-50/50">
+                <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-gray-700">
+                  ⚙ Capability overrides (advanced)
+                </summary>
+                <div className="px-3 pb-3 pt-1 space-y-1">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Per-user overrides win over the role default. Leave on{" "}
+                    <em>Inherit</em> to follow the role.
+                  </p>
+                  {catalog
+                    .filter((c) => c.applies_to?.includes(modal.form.role))
+                    .map((cap) => {
+                      const ov = modal.form.capability_overrides || {};
+                      const state = cap.key in ov ? (ov[cap.key] ? "allow" : "deny") : "inherit";
+                      const roleDefault =
+                        roleDefaults[modal.form.role]?.[cap.key] === true;
+                      const effective = state === "inherit" ? roleDefault : state === "allow";
+                      return (
+                        <div
+                          key={cap.key}
+                          className="flex items-center justify-between gap-3 py-1.5 border-b border-gray-100 last:border-0"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm text-gray-800">{cap.label}</div>
+                            <div className="text-[11px] text-gray-400">
+                              role default:{" "}
+                              <span className={roleDefault ? "text-emerald-600" : "text-gray-400"}>
+                                {roleDefault ? "allowed" : "denied"}
+                              </span>
+                              {" · "}effective:{" "}
+                              <span className={effective ? "text-emerald-600" : "text-red-500"}>
+                                {effective ? "allowed" : "denied"}
+                              </span>
+                            </div>
+                          </div>
+                          <TriState
+                            value={state}
+                            onChange={(next) => setOverride(cap.key, next)}
+                          />
+                        </div>
+                      );
+                    })}
+                </div>
+              </details>
+            </div>
+          ) : (
+            <div className="col-span-2 text-xs text-gray-500 bg-gray-50 border rounded-md px-3 py-2">
+              Super Admin has full access — capabilities are not configurable.
+            </div>
+          )}
           {submitErr && (
-            <div className="col-span-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{submitErr}</div>
+            <div className="col-span-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {submitErr}
+            </div>
           )}
         </form>
-        <style>{`.input { width:100%; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:14px; background:white; outline:none; } .input:focus { border-color:#2563eb; box-shadow:0 0 0 2px rgb(37 99 235/.2); }`}</style>
+        <style>{`
+          .input {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 14px;
+            background: white;
+            outline: none;
+          }
+          .input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgb(37 99 235 / 0.2); }
+        `}</style>
       </Modal>
     </>
+  );
+}
+
+function Field({ label, children, span }) {
+  return (
+    <div className={span === 2 ? "col-span-2" : ""}>
+      <label className="text-xs text-gray-600">{label}</label>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+const TRI_OPTS = [
+  { value: "inherit", label: "Inherit" },
+  { value: "allow", label: "Allow" },
+  { value: "deny", label: "Deny" },
+];
+const TRI_ACTIVE = {
+  inherit: "bg-gray-200 text-gray-700",
+  allow: "bg-emerald-600 text-white",
+  deny: "bg-red-600 text-white",
+};
+
+function TriState({ value, onChange }) {
+  return (
+    <div className="inline-flex rounded-md border border-gray-200 overflow-hidden shrink-0">
+      {TRI_OPTS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+            value === o.value ? TRI_ACTIVE[o.value] : "bg-white text-gray-500 hover:bg-gray-50"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
