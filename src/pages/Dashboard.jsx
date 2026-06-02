@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 
@@ -24,7 +25,7 @@ const ACCENTS = {
 
 function Kpi({ label, value, hint, icon, accent = "indigo", loading }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+    <div className="group bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div className="flex items-start justify-between">
         <div className="text-xs font-medium uppercase text-gray-400 tracking-wider">
           {label}
@@ -39,7 +40,7 @@ function Kpi({ label, value, hint, icon, accent = "indigo", loading }) {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[18px] w-[18px]"
+            className="h-4.5 w-4.5 h-[18px] w-[18px]"
           >
             {ICONS[icon]}
           </svg>
@@ -54,6 +55,46 @@ function Kpi({ label, value, hint, icon, accent = "indigo", loading }) {
       )}
       {hint && <div className="text-xs text-gray-400 mt-1.5">{hint}</div>}
     </div>
+  );
+}
+
+function QuickAction({ to, title, desc, icon, accent }) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-4 rounded-xl border border-gray-100 p-4 hover:border-gray-200 hover:bg-gray-50 transition-colors"
+    >
+      <div
+        className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ring-4 ${ACCENTS[accent]}`}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-[18px] w-[18px]"
+        >
+          {ICONS[icon]}
+        </svg>
+      </div>
+      <div className="min-w-0">
+        <div className="font-semibold text-gray-900 text-sm">{title}</div>
+        <div className="text-xs text-gray-500 mt-0.5">{desc}</div>
+      </div>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4 text-gray-300 ml-auto"
+      >
+        <path d="m9 18 6-6-6-6" />
+      </svg>
+    </Link>
   );
 }
 
@@ -85,10 +126,23 @@ export default function Dashboard() {
       />
       <div className="p-8 space-y-6 max-w-7xl">
         {err && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-2">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 shrink-0"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
             {err}
           </div>
         )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Kpi
             label="Total Users"
@@ -122,6 +176,66 @@ export default function Dashboard() {
             accent="amber"
             loading={loading}
           />
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">👋</span>
+              <h3 className="font-semibold text-gray-900">Welcome back</h3>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Manage your team and keep an eye on fulfillment across every store
+              from one place. Pick a shortcut below to jump straight in.
+            </p>
+            <div className="mt-5 grid sm:grid-cols-2 gap-3">
+              <QuickAction
+                to="/users"
+                title="Manage Users"
+                desc="Add or remove team members"
+                icon="users"
+                accent="indigo"
+              />
+              <QuickAction
+                to="/orders"
+                title="Review Orders"
+                desc="Track orders across stores"
+                icon="orders"
+                accent="sky"
+              />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-brand-700 to-brand-900 rounded-2xl shadow-sm p-6 text-white flex flex-col">
+            <div className="text-xs font-medium uppercase tracking-wider text-brand-100/70">
+              This Month
+            </div>
+            <div className="mt-2 text-4xl font-bold tabular-nums">
+              {loading ? "—" : kpis?.sent_this_month ?? 0}
+            </div>
+            <div className="text-sm text-brand-100/80 mt-1">
+              orders sent to super admin
+            </div>
+            <div className="mt-auto pt-6">
+              <Link
+                to="/orders?sent=true"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-white/90 hover:text-white"
+              >
+                View sent orders
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </>
