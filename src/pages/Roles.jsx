@@ -8,45 +8,34 @@ const EDITABLE_ROLES = [
   { value: "admin", label: "Admin (mobile)" },
 ];
 
-function Toggle({ checked, onChange }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-        checked ? "bg-brand-600" : "bg-gray-300"
-      }`}
-    >
-      <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0.5"
-        }`}
-      />
-    </button>
-  );
-}
-
 export default function Roles() {
   const [catalog, setCatalog] = useState([]);
-  const [roleCaps, setRoleCaps] = useState({});
+  const [roleCaps, setRoleCaps] = useState({}); // { role: { capKey: bool } }
   const [active, setActive] = useState("manager");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setErr("");
+    try {
+      const r = await api.get("/super-admin/capabilities");
+      setCatalog(r.data.data.catalog);
+      setRoleCaps(r.data.data.roles);
+    } catch (e) {
+      setErr(e.response?.data?.message || e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    setLoading(true);
-    api
-      .get("/super-admin/capabilities")
-      .then((r) => {
-        setCatalog(r.data.data.catalog);
-        setRoleCaps(r.data.data.roles);
-      })
-      .catch((e) => setErr(e.response?.data?.message || e.message))
-      .finally(() => setLoading(false));
+    load();
   }, []);
 
+  // Capabilities that apply to the active role, grouped by `group`.
   const groups = useMemo(() => {
     const applicable = catalog.filter((c) => c.applies_to?.includes(active));
     const byGroup = {};
@@ -63,11 +52,39 @@ export default function Roles() {
     }));
   }
 
+  async function save() {
+    setSaving(true);
+    setErr("");
+    setToast("");
+    try {
+      const r = await api.patch(`/super-admin/roles/${active}/capabilities`, {
+        capabilities: roleCaps[active] || {},
+      });
+      // Re-sync from the authoritative merged map the backend returns.
+      setRoleCaps((prev) => ({ ...prev, [active]: r.data.data.capabilities }));
+      setToast(`Saved ${active} permissions`);
+      setTimeout(() => setToast(""), 2500);
+    } catch (e) {
+      setErr(e.response?.data?.message || e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="Roles & Permissions"
         subtitle="Control what each persona can do in the mobile app"
+        actions={
+          <button
+            onClick={save}
+            disabled={saving || loading}
+            className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        }
       />
       <div className="p-8 space-y-5 max-w-4xl">
         {err && (
@@ -75,7 +92,13 @@ export default function Roles() {
             {err}
           </div>
         )}
+        {toast && (
+          <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+            {toast}
+          </div>
+        )}
 
+        {/* Role tabs */}
         <div className="flex flex-wrap gap-2">
           {EDITABLE_ROLES.map((r) => (
             <button
@@ -119,8 +142,14 @@ export default function Roles() {
                           <div className="text-sm font-medium text-gray-900">
                             {cap.label}
                           </div>
-                          <div className="text-xs text-gray-400 mt-0.5">
+                          <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
                             <code>{cap.key}</code>
+                            {cap.kind === "ui" && (
+                              <span className="text-gray-400">· app UI only</span>
+                            )}
+                            {cap.kind === "read" && (
+                              <span className="text-gray-400">· hides list + blocks read</span>
+                            )}
                           </div>
                         </div>
                         <Toggle checked={on} onChange={(v) => toggle(cap.key, v)} />
@@ -134,5 +163,25 @@ export default function Roles() {
         )}
       </div>
     </>
+  );
+}
+
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+        checked ? "bg-brand-600" : "bg-gray-300"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }
