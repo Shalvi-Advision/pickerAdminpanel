@@ -61,7 +61,7 @@ export default function OrderDetail() {
           </Link>
         }
       />
-      <div className="p-8 space-y-4 max-w-7xl">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 max-w-7xl">
         {err && (
           <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
             {err}
@@ -87,8 +87,8 @@ export default function OrderDetail() {
                 </span>
               </div>
             )}
-            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
+              <table className="w-full text-sm min-w-[540px]">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                   <tr>
                     <th className="text-left px-4 py-2.5">Item</th>

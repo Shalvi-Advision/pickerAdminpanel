@@ -188,7 +188,7 @@ export default function Users() {
           </button>
         }
       />
-      <div className="p-8 space-y-4">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4">
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="text-xs text-gray-500">Project</label>
@@ -262,8 +262,8 @@ export default function Users() {
         {loading ? (
           <div className="text-gray-500">Loading…</div>
         ) : (
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                 <tr>
                   <th className="text-left px-4 py-2">Name</th>
@@ -357,7 +357,7 @@ export default function Users() {
           </>
         }
       >
-        <form id="user-form" onSubmit={onSubmit} className="grid grid-cols-2 gap-4">
+        <form id="user-form" onSubmit={onSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Name">
             <input
               required

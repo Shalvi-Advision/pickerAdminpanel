@@ -56,7 +56,7 @@ function StoreUsersDrawer({ projectCode, storeCode, onClose }) {
 
   return (
     <Overlay onClose={onClose}>
-      <div className="p-6 min-w-[420px] max-w-lg">
+      <div className="p-5 w-[90vw] max-w-lg">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
@@ -132,7 +132,7 @@ function AddMappingModal({ onClose, onAdded }) {
 
   return (
     <Overlay onClose={onClose}>
-      <form onSubmit={handleSubmit} className="p-6 w-[360px]">
+      <form onSubmit={handleSubmit} className="p-5 w-[90vw] max-w-sm">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-gray-900">Add Project / Store</h2>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -244,7 +244,7 @@ export default function Projects() {
   const totalStores = projects.reduce((s, p) => s + p.stores.length, 0);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Projects"
         subtitle="Manage project codes, store codes, and see who's assigned."
