@@ -15,27 +15,42 @@ function fmtDate(d) {
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [projectCode, setProjectCode] = useState("");
   const [status, setStatus] = useState("");
   const [storeCode, setStoreCode] = useState("");
   const [sent, setSent] = useState("");
+
+  // Load distinct project codes once from orders.
+  useEffect(() => {
+    api.get("/super-admin/projects")
+      .then((r) => setProjects(r.data.data || []))
+      .catch(() => {});
+  }, []);
+
+  // When project changes, reload the stores scoped to that project and clear store selection.
+  useEffect(() => {
+    setStoreCode("");
+    const params = projectCode ? { project_code: projectCode } : {};
+    api.get("/super-admin/stores", { params })
+      .then((r) => setStores(r.data.data || []))
+      .catch(() => {});
+  }, [projectCode]);
 
   async function load() {
     setLoading(true);
     setErr("");
     try {
       const params = {};
+      if (projectCode) params.project_code = projectCode;
       if (status) params.status = status;
       if (storeCode) params.store_code = storeCode;
       if (sent) params.sent = sent;
-      const [o, s] = await Promise.all([
-        api.get("/super-admin/all-orders", { params }),
-        api.get("/super-admin/stores"),
-      ]);
-      setOrders(o.data.data);
-      setStores(s.data.data);
+      const r = await api.get("/super-admin/all-orders", { params });
+      setOrders(r.data.data);
     } catch (e) {
       setErr(e.response?.data?.message || e.message);
     } finally {
@@ -46,16 +61,29 @@ export default function Orders() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, storeCode, sent]);
+  }, [projectCode, status, storeCode, sent]);
 
   return (
     <>
       <PageHeader
         title="Orders"
-        subtitle="All orders across every store"
+        subtitle="All orders across every project and store"
       />
       <div className="p-8 space-y-4">
         <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="text-xs text-gray-500">Project</label>
+            <select
+              value={projectCode}
+              onChange={(e) => setProjectCode(e.target.value)}
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="">All projects</option>
+              {projects.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="text-xs text-gray-500">Status</label>
             <select
@@ -80,9 +108,7 @@ export default function Orders() {
             >
               <option value="">All stores</option>
               {stores.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
@@ -117,6 +143,7 @@ export default function Orders() {
               <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                 <tr>
                   <th className="text-left px-4 py-2">Order #</th>
+                  <th className="text-left px-4 py-2">Project</th>
                   <th className="text-left px-4 py-2">Store</th>
                   <th className="text-left px-4 py-2">Order Date</th>
                   <th className="text-left px-4 py-2">Items</th>
@@ -132,6 +159,9 @@ export default function Orders() {
                   <tr key={o._id} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-2 font-medium text-gray-900">
                       #{o.orders_idorders}
+                    </td>
+                    <td className="px-4 py-2 font-mono text-xs text-gray-700">
+                      {o.project_code || "—"}
                     </td>
                     <td className="px-4 py-2">{o.store_code}</td>
                     <td className="px-4 py-2 text-gray-700">{fmtDate(o.order_date)}</td>
@@ -166,7 +196,7 @@ export default function Orders() {
                 ))}
                 {!orders.length && (
                   <tr>
-                    <td colSpan="9" className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan="10" className="px-4 py-10 text-center text-gray-500">
                       No orders match the filters.
                     </td>
                   </tr>
