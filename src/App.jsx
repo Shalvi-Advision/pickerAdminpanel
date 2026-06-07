@@ -7,6 +7,7 @@ import Users from "./pages/Users.jsx";
 import Roles from "./pages/Roles.jsx";
 import Orders from "./pages/Orders.jsx";
 import OrderDetail from "./pages/OrderDetail.jsx";
+import Projects from "./pages/Projects.jsx";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="roles" element={<Roles />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="projects" element={<Projects />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -52,6 +52,15 @@ const NAV = [
       </Icon>
     ),
   },
+  {
+    to: "/projects",
+    label: "Projects",
+    icon: (
+      <Icon>
+        <path d="M3 9h18M3 15h18M9 3v18" />
+      </Icon>
+    ),
+  },
 ];
 
 function initials(name) {
