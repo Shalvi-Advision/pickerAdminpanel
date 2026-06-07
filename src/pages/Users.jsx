@@ -20,7 +20,7 @@ const empty = {
   password: "",
   role: "picker",
   store_codes: "",
-  project_code: "RET3163",
+  project_code: "",
   is_active: true,
   capability_overrides: {}, // capKey -> true (allow) / false (deny); absent = inherit
 };
@@ -34,6 +34,7 @@ export default function Users() {
   const [err, setErr] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [storeFilter, setStoreFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
   const [q, setQ] = useState("");
 
   const [modal, setModal] = useState({ open: false, mode: "create", form: empty });
@@ -69,14 +70,25 @@ export default function Users() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleFilter, storeFilter]);
 
+  // Unique project codes derived from loaded users (excludes unscoped roles with empty codes).
+  const projectCodes = useMemo(
+    () => [...new Set(users.map((u) => u.project_code).filter(Boolean))].sort(),
+    [users]
+  );
+
+  const filtered = useMemo(() => {
+    if (!projectFilter) return users;
+    return users.filter((u) => u.project_code === projectFilter);
+  }, [users, projectFilter]);
+
   const grouped = useMemo(() => {
     return {
-      super_admin: users.filter((u) => u.role === "super_admin"),
-      admin: users.filter((u) => u.role === "admin"),
-      manager: users.filter((u) => u.role === "manager"),
-      picker: users.filter((u) => u.role === "picker"),
+      super_admin: filtered.filter((u) => u.role === "super_admin"),
+      admin: filtered.filter((u) => u.role === "admin"),
+      manager: filtered.filter((u) => u.role === "manager"),
+      picker: filtered.filter((u) => u.role === "picker"),
     };
-  }, [users]);
+  }, [filtered]);
 
   function openCreate() {
     setSubmitErr("");
@@ -95,7 +107,7 @@ export default function Users() {
         password: "",
         role: u.role,
         store_codes: (u.store_codes || []).join(", "),
-        project_code: u.project_code || "RET3163",
+        project_code: u.project_code || "",
         is_active: !!u.is_active,
         capability_overrides: { ...(u.capability_overrides || {}) },
       },
@@ -179,6 +191,19 @@ export default function Users() {
       <div className="p-8 space-y-4">
         <div className="flex flex-wrap gap-3 items-end">
           <div>
+            <label className="text-xs text-gray-500">Project</label>
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="">All projects</option>
+              {projectCodes.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="text-xs text-gray-500">Role</label>
             <select
               value={roleFilter}
@@ -245,6 +270,7 @@ export default function Users() {
                   <th className="text-left px-4 py-2">Email</th>
                   <th className="text-left px-4 py-2">Phone</th>
                   <th className="text-left px-4 py-2">Role</th>
+                  <th className="text-left px-4 py-2">Project</th>
                   <th className="text-left px-4 py-2">Stores</th>
                   <th className="text-left px-4 py-2">Status</th>
                   <th className="text-right px-4 py-2">Actions</th>
@@ -256,7 +282,7 @@ export default function Users() {
                   if (!list.length) return [];
                   return [
                     <tr key={`h-${role}`} className="bg-gray-50/50">
-                      <td colSpan="7" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
+                      <td colSpan="8" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
                         {role.replace("_", " ")} ({list.length})
                       </td>
                     </tr>,
@@ -266,6 +292,9 @@ export default function Users() {
                         <td className="px-4 py-2 text-gray-700">{u.email}</td>
                         <td className="px-4 py-2 text-gray-700">{u.phone}</td>
                         <td className="px-4 py-2"><Badge value={u.role} /></td>
+                        <td className="px-4 py-2 text-gray-700 font-mono text-xs">
+                          {u.project_code || "—"}
+                        </td>
                         <td className="px-4 py-2 text-gray-700">
                           {(u.store_codes || []).join(", ") || "—"}
                         </td>
@@ -292,7 +321,7 @@ export default function Users() {
                 })}
                 {!users.length && (
                   <tr>
-                    <td colSpan="7" className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan="8" className="px-4 py-10 text-center text-gray-500">
                       No users match the filters.
                     </td>
                   </tr>
