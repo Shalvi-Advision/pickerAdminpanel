@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
+import Pagination from "../components/Pagination.jsx";
 
 const STATUSES = ["pending", "assigned", "in_progress", "completed", "rejected"];
+const PER_PAGE = 25;
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -23,15 +25,19 @@ export default function Orders() {
   const [status, setStatus] = useState("");
   const [storeCode, setStoreCode] = useState("");
   const [sent, setSent] = useState("");
+  const [page, setPage] = useState(1);
 
-  // Load distinct project codes once from orders.
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); }, [projectCode, status, storeCode, sent]);
+
+  // Load distinct project codes once
   useEffect(() => {
     api.get("/super-admin/projects")
       .then((r) => setProjects(r.data.data || []))
       .catch(() => {});
   }, []);
 
-  // When project changes, reload the stores scoped to that project and clear store selection.
+  // When project changes, reload stores and clear store selection
   useEffect(() => {
     setStoreCode("");
     const params = projectCode ? { project_code: projectCode } : {};
@@ -62,6 +68,8 @@ export default function Orders() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectCode, status, storeCode, sent]);
+
+  const pagedOrders = orders.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <>
@@ -125,7 +133,7 @@ export default function Orders() {
             </select>
           </div>
           <div className="text-sm text-gray-500 ml-auto">
-            Showing {orders.length} {orders.length === 1 ? "order" : "orders"}
+            {orders.length} {orders.length === 1 ? "order" : "orders"} total
           </div>
         </div>
 
@@ -138,71 +146,82 @@ export default function Orders() {
         {loading ? (
           <div className="text-gray-500">Loading…</div>
         ) : (
-          <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
-            <table className="w-full text-sm min-w-[700px]">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-600">
-                <tr>
-                  <th className="text-left px-4 py-2">Order #</th>
-                  <th className="text-left px-4 py-2">Project</th>
-                  <th className="text-left px-4 py-2">Store</th>
-                  <th className="text-left px-4 py-2">Order Date</th>
-                  <th className="text-left px-4 py-2">Items</th>
-                  <th className="text-left px-4 py-2">Amount</th>
-                  <th className="text-left px-4 py-2">Status</th>
-                  <th className="text-left px-4 py-2">Assigned To</th>
-                  <th className="text-left px-4 py-2">Sent</th>
-                  <th className="text-right px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => (
-                  <tr key={o._id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-gray-900">
-                      #{o.orders_idorders}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs text-gray-700">
-                      {o.project_code || "—"}
-                    </td>
-                    <td className="px-4 py-2">{o.store_code}</td>
-                    <td className="px-4 py-2 text-gray-700">{fmtDate(o.order_date)}</td>
-                    <td className="px-4 py-2 text-gray-700">{o.total_items}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      ₹{Number(o.total_amount || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-2">
-                      <Badge value={o.status} />
-                    </td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {o.current_assignment?.assigned_to?.name || "—"}
-                    </td>
-                    <td className="px-4 py-2">
-                      {o.sent_to_super_admin ? (
-                        <span className="text-xs text-emerald-700">
-                          ✓ {fmtDate(o.sent_to_super_admin_at)}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <Link
-                        to={`/orders/${o.orders_idorders}`}
-                        className="text-brand-600 hover:underline text-sm"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-                {!orders.length && (
+          <div className="bg-white rounded-xl border shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[700px]">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                   <tr>
-                    <td colSpan="10" className="px-4 py-10 text-center text-gray-500">
-                      No orders match the filters.
-                    </td>
+                    <th className="text-left px-4 py-2">Order #</th>
+                    <th className="text-left px-4 py-2">Project</th>
+                    <th className="text-left px-4 py-2">Store</th>
+                    <th className="text-left px-4 py-2">Order Date</th>
+                    <th className="text-left px-4 py-2">Items</th>
+                    <th className="text-left px-4 py-2">Amount</th>
+                    <th className="text-left px-4 py-2">Status</th>
+                    <th className="text-left px-4 py-2">Assigned To</th>
+                    <th className="text-left px-4 py-2">Sent</th>
+                    <th className="text-right px-4 py-2"></th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pagedOrders.map((o) => (
+                    <tr key={o._id} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-2 font-medium text-gray-900">
+                        #{o.orders_idorders}
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs text-gray-700">
+                        {o.project_code || "—"}
+                      </td>
+                      <td className="px-4 py-2">{o.store_code}</td>
+                      <td className="px-4 py-2 text-gray-700">{fmtDate(o.order_date)}</td>
+                      <td className="px-4 py-2 text-gray-700">{o.total_items}</td>
+                      <td className="px-4 py-2 text-gray-700">
+                        ₹{Number(o.total_amount || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <Badge value={o.status} />
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {o.current_assignment?.assigned_to?.name || "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {o.sent_to_super_admin ? (
+                          <span className="text-xs text-emerald-700">
+                            ✓ {fmtDate(o.sent_to_super_admin_at)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <Link
+                          to={`/orders/${o.orders_idorders}`}
+                          className="text-brand-600 hover:underline text-sm"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                  {!orders.length && (
+                    <tr>
+                      <td colSpan="10" className="px-4 py-10 text-center text-gray-500">
+                        No orders match the filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="px-4 pb-3">
+              <Pagination
+                page={page}
+                total={orders.length}
+                perPage={PER_PAGE}
+                onChange={setPage}
+              />
+            </div>
           </div>
         )}
       </div>

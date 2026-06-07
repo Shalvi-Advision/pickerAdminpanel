@@ -3,6 +3,9 @@ import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import Modal from "../components/Modal.jsx";
+import Pagination from "../components/Pagination.jsx";
+
+const PER_PAGE = 20;
 
 const ROLE_OPTIONS = [
   { value: "picker", label: "Picker" },
@@ -37,6 +40,7 @@ export default function Users() {
   const [projectFilter, setProjectFilter] = useState("");
   const [q, setQ] = useState("");
 
+  const [page, setPage] = useState(1);
   const [modal, setModal] = useState({ open: false, mode: "create", form: empty });
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
@@ -89,6 +93,21 @@ export default function Users() {
       picker: filtered.filter((u) => u.role === "picker"),
     };
   }, [filtered]);
+
+  // Reset page when any filter changes
+  useEffect(() => { setPage(1); }, [roleFilter, storeFilter, projectFilter, q]);
+
+  // Current page slice + per-page grouping for table rows
+  const pagedUsers = useMemo(
+    () => filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE),
+    [filtered, page]
+  );
+  const pagedGrouped = useMemo(() => ({
+    super_admin: pagedUsers.filter((u) => u.role === "super_admin"),
+    admin: pagedUsers.filter((u) => u.role === "admin"),
+    manager: pagedUsers.filter((u) => u.role === "manager"),
+    picker: pagedUsers.filter((u) => u.role === "picker"),
+  }), [pagedUsers]);
 
   function openCreate() {
     setSubmitErr("");
@@ -262,72 +281,83 @@ export default function Users() {
         {loading ? (
           <div className="text-gray-500">Loading…</div>
         ) : (
-          <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
-            <table className="w-full text-sm min-w-[700px]">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-600">
-                <tr>
-                  <th className="text-left px-4 py-2">Name</th>
-                  <th className="text-left px-4 py-2">Email</th>
-                  <th className="text-left px-4 py-2">Phone</th>
-                  <th className="text-left px-4 py-2">Role</th>
-                  <th className="text-left px-4 py-2">Project</th>
-                  <th className="text-left px-4 py-2">Stores</th>
-                  <th className="text-left px-4 py-2">Status</th>
-                  <th className="text-right px-4 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {["super_admin", "admin", "manager", "picker"].flatMap((role) => {
-                  const list = grouped[role];
-                  if (!list.length) return [];
-                  return [
-                    <tr key={`h-${role}`} className="bg-gray-50/50">
-                      <td colSpan="8" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
-                        {role.replace("_", " ")} ({list.length})
-                      </td>
-                    </tr>,
-                    ...list.map((u) => (
-                      <tr key={u._id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
-                        <td className="px-4 py-2 text-gray-700">{u.email}</td>
-                        <td className="px-4 py-2 text-gray-700">{u.phone}</td>
-                        <td className="px-4 py-2"><Badge value={u.role} /></td>
-                        <td className="px-4 py-2 text-gray-700 font-mono text-xs">
-                          {u.project_code || "—"}
-                        </td>
-                        <td className="px-4 py-2 text-gray-700">
-                          {(u.store_codes || []).join(", ") || "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <Badge value={u.is_active ? "active" : "inactive"} />
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="text-brand-600 hover:underline text-sm mr-3"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => onDelete(u)}
-                            className="text-red-600 hover:underline text-sm"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    )),
-                  ];
-                })}
-                {!users.length && (
+          <div className="bg-white rounded-xl border shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[700px]">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                   <tr>
-                    <td colSpan="8" className="px-4 py-10 text-center text-gray-500">
-                      No users match the filters.
-                    </td>
+                    <th className="text-left px-4 py-2">Name</th>
+                    <th className="text-left px-4 py-2">Email</th>
+                    <th className="text-left px-4 py-2">Phone</th>
+                    <th className="text-left px-4 py-2">Role</th>
+                    <th className="text-left px-4 py-2">Project</th>
+                    <th className="text-left px-4 py-2">Stores</th>
+                    <th className="text-left px-4 py-2">Status</th>
+                    <th className="text-right px-4 py-2">Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {["super_admin", "admin", "manager", "picker"].flatMap((role) => {
+                    const list = pagedGrouped[role];
+                    if (!list.length) return [];
+                    return [
+                      <tr key={`h-${role}`} className="bg-gray-50/50">
+                        <td colSpan="8" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
+                          {role.replace("_", " ")} ({grouped[role].length})
+                        </td>
+                      </tr>,
+                      ...list.map((u) => (
+                        <tr key={u._id} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
+                          <td className="px-4 py-2 text-gray-700">{u.email}</td>
+                          <td className="px-4 py-2 text-gray-700">{u.phone}</td>
+                          <td className="px-4 py-2"><Badge value={u.role} /></td>
+                          <td className="px-4 py-2 text-gray-700 font-mono text-xs">
+                            {u.project_code || "—"}
+                          </td>
+                          <td className="px-4 py-2 text-gray-700">
+                            {(u.store_codes || []).join(", ") || "—"}
+                          </td>
+                          <td className="px-4 py-2">
+                            <Badge value={u.is_active ? "active" : "inactive"} />
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <button
+                              onClick={() => openEdit(u)}
+                              className="text-brand-600 hover:underline text-sm mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => onDelete(u)}
+                              className="text-red-600 hover:underline text-sm"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      )),
+                    ];
+                  })}
+                  {!users.length && (
+                    <tr>
+                      <td colSpan="8" className="px-4 py-10 text-center text-gray-500">
+                        No users match the filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="px-4 pb-3">
+              <Pagination
+                page={page}
+                total={filtered.length}
+                perPage={PER_PAGE}
+                onChange={setPage}
+              />
+            </div>
           </div>
         )}
       </div>
