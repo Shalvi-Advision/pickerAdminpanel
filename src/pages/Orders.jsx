@@ -12,7 +12,20 @@ function fmtDate(d) {
   if (!d) return "—";
   const dt = new Date(d);
   if (isNaN(dt)) return String(d);
-  return dt.toLocaleString();
+  return dt.toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+}
+
+function fmtDelivery(d) {
+  if (!d) return "—";
+  // delivery_date is stored as a String; try to parse it as a date, else show raw
+  const dt = new Date(d);
+  if (!isNaN(dt)) {
+    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  return String(d);
 }
 
 export default function Orders() {
@@ -155,6 +168,7 @@ export default function Orders() {
                     <th className="text-left px-4 py-2">Project</th>
                     <th className="text-left px-4 py-2">Store</th>
                     <th className="text-left px-4 py-2">Order Date</th>
+                    <th className="text-left px-4 py-2">Delivery Date</th>
                     <th className="text-left px-4 py-2">Items</th>
                     <th className="text-left px-4 py-2">Amount</th>
                     <th className="text-left px-4 py-2">Status</th>
@@ -173,7 +187,8 @@ export default function Orders() {
                         {o.project_code || "—"}
                       </td>
                       <td className="px-4 py-2">{o.store_code}</td>
-                      <td className="px-4 py-2 text-gray-700">{fmtDate(o.order_date)}</td>
+                      <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{fmtDate(o.order_date)}</td>
+                      <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{fmtDelivery(o.delivery_date)}</td>
                       <td className="px-4 py-2 text-gray-700">{o.total_items}</td>
                       <td className="px-4 py-2 text-gray-700">
                         ₹{Number(o.total_amount || 0).toFixed(2)}
@@ -205,7 +220,7 @@ export default function Orders() {
                   ))}
                   {!orders.length && (
                     <tr>
-                      <td colSpan="10" className="px-4 py-10 text-center text-gray-500">
+                      <td colSpan="11" className="px-4 py-10 text-center text-gray-500">
                         No orders match the filters.
                       </td>
                     </tr>
