@@ -8,7 +8,23 @@ import Pagination from "../components/Pagination.jsx";
 const STATUSES = ["pending", "assigned", "in_progress", "completed", "rejected"];
 const PER_PAGE = 25;
 
-function fmtDate(d) {
+// order_date comes from the e-commerce source as IST with no TZ marker.
+// MongoDB stores it as UTC (treating IST as UTC), so displaying in UTC
+// recovers the original intended local time.
+function fmtOrderDate(d) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (isNaN(dt)) return String(d);
+  return dt.toLocaleString("en-IN", {
+    timeZone: "UTC",
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+}
+
+// System-generated timestamps (sent_to_super_admin_at etc.) are correctly
+// stored as UTC and should display in the browser's local timezone (IST).
+function fmtSystemDate(d) {
   if (!d) return "—";
   const dt = new Date(d);
   if (isNaN(dt)) return String(d);
@@ -18,12 +34,16 @@ function fmtDate(d) {
   });
 }
 
+// delivery_date is stored as a plain date string (e.g. "2026-06-08").
 function fmtDelivery(d) {
   if (!d) return "—";
-  // delivery_date is stored as a String; try to parse it as a date, else show raw
-  const dt = new Date(d);
+  // Append T00:00:00Z so it's parsed as UTC midnight and shown as a date only.
+  const dt = new Date(d.includes("T") ? d : d + "T00:00:00Z");
   if (!isNaN(dt)) {
-    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return dt.toLocaleDateString("en-IN", {
+      timeZone: "UTC",
+      day: "2-digit", month: "short", year: "numeric",
+    });
   }
   return String(d);
 }
@@ -187,7 +207,7 @@ export default function Orders() {
                         {o.project_code || "—"}
                       </td>
                       <td className="px-4 py-2">{o.store_code}</td>
-                      <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{fmtDate(o.order_date)}</td>
+                      <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{fmtOrderDate(o.order_date)}</td>
                       <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{fmtDelivery(o.delivery_date)}</td>
                       <td className="px-4 py-2 text-gray-700">{o.total_items}</td>
                       <td className="px-4 py-2 text-gray-700">
@@ -202,7 +222,7 @@ export default function Orders() {
                       <td className="px-4 py-2">
                         {o.sent_to_super_admin ? (
                           <span className="text-xs text-emerald-700">
-                            ✓ {fmtDate(o.sent_to_super_admin_at)}
+                            ✓ {fmtSystemDate(o.sent_to_super_admin_at)}
                           </span>
                         ) : (
                           <span className="text-xs text-gray-400">—</span>
