@@ -8,6 +8,7 @@ import Roles from "./pages/Roles.jsx";
 import Orders from "./pages/Orders.jsx";
 import OrderDetail from "./pages/OrderDetail.jsx";
 import Projects from "./pages/Projects.jsx";
+import WebhookLogs from "./pages/WebhookLogs.jsx";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
         <Route path="projects" element={<Projects />} />
+        <Route path="webhook-logs" element={<WebhookLogs />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
