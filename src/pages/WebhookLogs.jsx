@@ -108,16 +108,31 @@ export default function WebhookLogs() {
 
         {/* Stats row */}
         {!loading && logs.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {STATUSES.map((s) => {
               const count = logs.filter((l) => l.status === s).length;
+              const isError = ["auth_failed", "validation_failed", "error"].includes(s);
               return (
-                <div key={s} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
-                  <div className="text-2xl font-bold text-gray-900">{count}</div>
+                <div key={s} className={`bg-white rounded-xl border shadow-sm px-4 py-3 ${isError && count > 0 ? "border-red-200" : "border-gray-100"}`}>
+                  <div className={`text-2xl font-bold ${isError && count > 0 ? "text-red-600" : "text-gray-900"}`}>
+                    {count}
+                  </div>
                   <div className="text-xs text-gray-500 mt-0.5">{s.replace(/_/g, " ")}</div>
                 </div>
               );
             })}
+            {/* Assign failed — success webhooks where round-robin couldn't assign */}
+            {(() => {
+              const count = logs.filter((l) => l.status === "success" && l.assigned === false).length;
+              return (
+                <div className={`bg-white rounded-xl border shadow-sm px-4 py-3 ${count > 0 ? "border-amber-200" : "border-gray-100"}`}>
+                  <div className={`text-2xl font-bold ${count > 0 ? "text-amber-600" : "text-gray-900"}`}>
+                    {count}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">assign failed</div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
