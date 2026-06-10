@@ -59,9 +59,10 @@ export default function Orders() {
   const [storeCode, setStoreCode] = useState("");
   const [sent, setSent] = useState("");
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
-  // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1); }, [projectCode, status, storeCode, sent]);
+  // Reset to page 1 whenever filters or search change
+  useEffect(() => { setPage(1); }, [projectCode, status, storeCode, sent, search]);
 
   // Load distinct project codes once
   useEffect(() => {
@@ -88,6 +89,7 @@ export default function Orders() {
       if (status) params.status = status;
       if (storeCode) params.store_code = storeCode;
       if (sent) params.sent = sent;
+      if (search.trim()) params.order_id = search.trim();
       const r = await api.get("/super-admin/all-orders", { params });
       setOrders(r.data.data);
     } catch (e) {
@@ -100,7 +102,7 @@ export default function Orders() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode, status, storeCode, sent]);
+  }, [projectCode, status, storeCode, sent, search]);
 
   const pagedOrders = orders.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -164,6 +166,24 @@ export default function Orders() {
               <option value="true">Sent</option>
               <option value="false">Not sent</option>
             </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Search Order #</label>
+            <div className="relative mt-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Order ID…"
+                className="border rounded-md pl-7 pr-8 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-base leading-none">×</button>
+              )}
+            </div>
           </div>
           <div className="text-sm text-gray-500 ml-auto">
             {orders.length} {orders.length === 1 ? "order" : "orders"} total

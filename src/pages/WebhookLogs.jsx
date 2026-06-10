@@ -36,6 +36,7 @@ export default function WebhookLogs() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(null);
 
   const load = useCallback(async (s = 0) => {
@@ -44,6 +45,7 @@ export default function WebhookLogs() {
     try {
       const params = { limit: LIMIT, skip: s };
       if (statusFilter) params.status = statusFilter;
+      if (search.trim()) params.order_id = search.trim();
       const r = await api.get("/super-admin/webhook-logs", { params });
       setLogs(r.data.data.logs);
       setTotal(r.data.data.total);
@@ -53,7 +55,7 @@ export default function WebhookLogs() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, search]);
 
   useEffect(() => { load(0); }, [load]);
 
@@ -94,6 +96,24 @@ export default function WebhookLogs() {
                 <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Search Order #</label>
+            <div className="relative mt-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Order ID…"
+                className="border rounded-md pl-7 pr-8 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-base leading-none">×</button>
+              )}
+            </div>
           </div>
           <div className="ml-auto text-sm text-gray-500">
             {total} total calls
