@@ -6,6 +6,7 @@ import Modal from "../components/Modal.jsx";
 import Pagination from "../components/Pagination.jsx";
 
 const PER_PAGE = 20;
+const MOBILE_ROLES = ["picker", "manager", "admin"];
 
 const ROLE_OPTIONS = [
   { value: "picker", label: "Picker" },
@@ -44,6 +45,7 @@ export default function Users() {
   const [modal, setModal] = useState({ open: false, mode: "create", form: empty });
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
+  const [testPushState, setTestPushState] = useState({}); // { [userId]: "sending"|"ok"|"err" }
 
   async function load() {
     setLoading(true);
@@ -93,6 +95,30 @@ export default function Users() {
       picker: filtered.filter((u) => u.role === "picker"),
     };
   }, [filtered]);
+
+  // FCM token stats across ALL loaded users (not just current page/filter)
+  const tokenStats = useMemo(() => {
+    const mobile = users.filter((u) => MOBILE_ROLES.includes(u.role));
+    const withToken = mobile.filter((u) => u.fcm_token);
+    return {
+      total: mobile.length,
+      withToken: withToken.length,
+      noToken: mobile.length - withToken.length,
+    };
+  }, [users]);
+
+  async function sendTestPush(userId) {
+    setTestPushState((s) => ({ ...s, [userId]: "sending" }));
+    try {
+      await api.post(`/test/push-user/${userId}`);
+      setTestPushState((s) => ({ ...s, [userId]: "ok" }));
+      setTimeout(() => setTestPushState((s) => { const n = { ...s }; delete n[userId]; return n; }), 3000);
+    } catch (e) {
+      setTestPushState((s) => ({ ...s, [userId]: "err" }));
+      setTimeout(() => setTestPushState((s) => { const n = { ...s }; delete n[userId]; return n; }), 4000);
+      alert(e.response?.data?.error_message || e.response?.data?.message || e.message);
+    }
+  }
 
   // Reset page when any filter changes
   useEffect(() => { setPage(1); }, [roleFilter, storeFilter, projectFilter, q]);
@@ -272,6 +298,33 @@ export default function Users() {
           </div>
         </div>
 
+        {/* FCM Token summary bar */}
+        {!loading && (
+          <div className="flex flex-wrap items-center gap-4 bg-white border rounded-xl px-4 py-3 text-sm shadow-sm">
+            <span className="text-gray-500 font-medium">Device Tokens</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+              <span className="font-semibold text-gray-800">{tokenStats.withToken}</span>
+              <span className="text-gray-500">registered</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+              <span className="font-semibold text-gray-800">{tokenStats.noToken}</span>
+              <span className="text-gray-500">no token</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-gray-400">of</span>
+              <span className="font-semibold text-gray-800">{tokenStats.total}</span>
+              <span className="text-gray-500">mobile users</span>
+            </span>
+            {tokenStats.total > 0 && (
+              <span className="ml-auto text-xs text-gray-400">
+                {Math.round((tokenStats.withToken / tokenStats.total) * 100)}% coverage
+              </span>
+            )}
+          </div>
+        )}
+
         {err && (
           <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
             {err}
@@ -293,6 +346,7 @@ export default function Users() {
                     <th className="text-left px-4 py-2">Project</th>
                     <th className="text-left px-4 py-2">Stores</th>
                     <th className="text-left px-4 py-2">Status</th>
+                    <th className="text-left px-4 py-2">Push</th>
                     <th className="text-right px-4 py-2">Actions</th>
                   </tr>
                 </thead>
@@ -302,46 +356,82 @@ export default function Users() {
                     if (!list.length) return [];
                     return [
                       <tr key={`h-${role}`} className="bg-gray-50/50">
-                        <td colSpan="8" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
+                        <td colSpan="9" className="px-4 py-2 text-xs uppercase text-gray-500 tracking-wide font-medium">
                           {role.replace("_", " ")} ({grouped[role].length})
                         </td>
                       </tr>,
-                      ...list.map((u) => (
-                        <tr key={u._id} className="border-t hover:bg-gray-50">
-                          <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
-                          <td className="px-4 py-2 text-gray-700">{u.email}</td>
-                          <td className="px-4 py-2 text-gray-700">{u.phone}</td>
-                          <td className="px-4 py-2"><Badge value={u.role} /></td>
-                          <td className="px-4 py-2 text-gray-700 font-mono text-xs">
-                            {u.project_code || "—"}
-                          </td>
-                          <td className="px-4 py-2 text-gray-700">
-                            {(u.store_codes || []).join(", ") || "—"}
-                          </td>
-                          <td className="px-4 py-2">
-                            <Badge value={u.is_active ? "active" : "inactive"} />
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <button
-                              onClick={() => openEdit(u)}
-                              className="text-brand-600 hover:underline text-sm mr-3"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => onDelete(u)}
-                              className="text-red-600 hover:underline text-sm"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      )),
+                      ...list.map((u) => {
+                        const isMobile = MOBILE_ROLES.includes(u.role);
+                        const pushStatus = testPushState[u._id];
+                        return (
+                          <tr key={u._id} className="border-t hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-gray-900">{u.name}</td>
+                            <td className="px-4 py-2 text-gray-700">{u.email}</td>
+                            <td className="px-4 py-2 text-gray-700">{u.phone}</td>
+                            <td className="px-4 py-2"><Badge value={u.role} /></td>
+                            <td className="px-4 py-2 text-gray-700 font-mono text-xs">
+                              {u.project_code || "—"}
+                            </td>
+                            <td className="px-4 py-2 text-gray-700">
+                              {(u.store_codes || []).join(", ") || "—"}
+                            </td>
+                            <td className="px-4 py-2">
+                              <Badge value={u.is_active ? "active" : "inactive"} />
+                            </td>
+                            <td className="px-4 py-2">
+                              {isMobile ? (
+                                u.fcm_token ? (
+                                  <span title={u.fcm_token} className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                    Token
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block" />
+                                    No token
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-right whitespace-nowrap">
+                              {isMobile && u.fcm_token && (
+                                <button
+                                  onClick={() => sendTestPush(u._id)}
+                                  disabled={pushStatus === "sending"}
+                                  className={`text-xs mr-3 px-2 py-0.5 rounded border transition-colors ${
+                                    pushStatus === "ok"
+                                      ? "border-emerald-300 text-emerald-700 bg-emerald-50"
+                                      : pushStatus === "err"
+                                      ? "border-red-300 text-red-600 bg-red-50"
+                                      : "border-gray-200 text-gray-500 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {pushStatus === "sending" ? "Sending…" : pushStatus === "ok" ? "Sent!" : pushStatus === "err" ? "Failed" : "Test Push"}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => openEdit(u)}
+                                className="text-brand-600 hover:underline text-sm mr-3"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => onDelete(u)}
+                                className="text-red-600 hover:underline text-sm"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      }),
                     ];
                   })}
                   {!users.length && (
                     <tr>
-                      <td colSpan="8" className="px-4 py-10 text-center text-gray-500">
+                      <td colSpan="9" className="px-4 py-10 text-center text-gray-500">
                         No users match the filters.
                       </td>
                     </tr>
