@@ -28,6 +28,18 @@ export default function AppRelease() {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef();
 
+  const [storeForm, setStoreForm] = useState({
+    android_latest_version: "",
+    android_review_version: "",
+    ios_latest_version: "",
+    ios_review_version: "",
+    play_store_url: "",
+    app_store_url: "",
+  });
+  const [storeErr, setStoreErr] = useState("");
+  const [storeSuccess, setStoreSuccess] = useState("");
+  const [storeSaving, setStoreSaving] = useState(false);
+
   async function load() {
     setLoading(true);
     try {
@@ -35,8 +47,19 @@ export default function AppRelease() {
         api.get("/super-admin/app-release"),
         api.get("/super-admin/app-release/files"),
       ]);
-      setCurrent(rel.data.data);
+      const d = rel.data.data;
+      setCurrent(d);
       setFiles(fl.data.data);
+      if (d) {
+        setStoreForm({
+          android_latest_version: d.android_latest_version || "",
+          android_review_version: d.android_review_version || "",
+          ios_latest_version: d.ios_latest_version || "",
+          ios_review_version: d.ios_review_version || "",
+          play_store_url: d.play_store_url || "",
+          app_store_url: d.app_store_url || "",
+        });
+      }
     } catch (e) {
       setErr(e.response?.data?.message || e.message);
     } finally {
@@ -45,6 +68,22 @@ export default function AppRelease() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function saveStoreConfig(e) {
+    e.preventDefault();
+    setStoreSaving(true);
+    setStoreErr("");
+    setStoreSuccess("");
+    try {
+      const res = await api.put("/super-admin/app-release/store-config", storeForm);
+      setCurrent(res.data.data);
+      setStoreSuccess("Store config saved successfully!");
+    } catch (e2) {
+      setStoreErr(e2.response?.data?.message || e2.message);
+    } finally {
+      setStoreSaving(false);
+    }
+  }
 
   function pickFile(f) {
     if (!f) return;
@@ -174,11 +213,187 @@ export default function AppRelease() {
                     {current.apk_url}
                   </a>
                 )}
+                <div className="flex flex-wrap gap-2 text-xs mt-1">
+                  {current.android_latest_version && (
+                    <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">
+                      Android {current.android_latest_version}
+                      {current.android_review_version ? ` · review ${current.android_review_version}` : ""}
+                    </span>
+                  )}
+                  {current.ios_latest_version && (
+                    <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                      iOS {current.ios_latest_version}
+                      {current.ios_review_version ? ` · review ${current.ios_review_version}` : ""}
+                    </span>
+                  )}
+                  {current.play_store_url && (
+                    <a href={current.play_store_url} target="_blank" rel="noreferrer"
+                      className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100 hover:underline">
+                      Play Store ↗
+                    </a>
+                  )}
+                  {current.app_store_url && (
+                    <a href={current.app_store_url} target="_blank" rel="noreferrer"
+                      className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200 hover:underline">
+                      App Store ↗
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
             <div className="text-gray-400 text-sm">No release published yet.</div>
           )}
+        </div>
+
+        {/* ── Store Distribution Config ── */}
+        <div className="bg-white border rounded-xl shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Svg className="w-4 h-4 text-indigo-600">
+                <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
+                <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2" />
+                <path d="M12 12v5" />
+                <path d="M9.5 14.5 12 12l2.5 2.5" />
+              </Svg>
+            </div>
+            <h2 className="text-sm font-semibold text-gray-700">Store Distribution</h2>
+            <span className="ml-2 text-xs text-gray-400">Play Store / App Store forced updates</span>
+          </div>
+
+          {storeErr && (
+            <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{storeErr}</div>
+          )}
+          {storeSuccess && (
+            <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">{storeSuccess}</div>
+          )}
+
+          <form onSubmit={saveStoreConfig} className="space-y-4">
+            {/* Android + iOS version rows */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Android */}
+              <div className="space-y-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-green-100 flex items-center justify-center">
+                    <Svg className="w-3.5 h-3.5 text-green-700">
+                      <path d="M5 16L3 5l5.5 5 3.5-7 3.5 7L21 5l-2 11H5Z" />
+                    </Svg>
+                  </div>
+                  <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Android</span>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Latest Version</label>
+                  <input
+                    value={storeForm.android_latest_version}
+                    onChange={(e) => setStoreForm({ ...storeForm, android_latest_version: e.target.value })}
+                    placeholder="e.g. 1.3.0"
+                    className="mt-1 w-full border rounded-md px-3 py-1.5 text-sm outline-none focus:border-brand-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">
+                    Review Version
+                    <span className="ml-1 text-gray-400">(skip update prompt for reviewers)</span>
+                  </label>
+                  <input
+                    value={storeForm.android_review_version}
+                    onChange={(e) => setStoreForm({ ...storeForm, android_review_version: e.target.value })}
+                    placeholder="e.g. 1.3.0"
+                    className="mt-1 w-full border rounded-md px-3 py-1.5 text-sm outline-none focus:border-brand-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* iOS */}
+              <div className="space-y-3 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-gray-200 flex items-center justify-center">
+                    <Svg className="w-3.5 h-3.5 text-gray-700">
+                      <path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4Z" />
+                      <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
+                    </Svg>
+                  </div>
+                  <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">iOS</span>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Latest Version</label>
+                  <input
+                    value={storeForm.ios_latest_version}
+                    onChange={(e) => setStoreForm({ ...storeForm, ios_latest_version: e.target.value })}
+                    placeholder="e.g. 1.3.0"
+                    className="mt-1 w-full border rounded-md px-3 py-1.5 text-sm outline-none focus:border-brand-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">
+                    Review Version
+                    <span className="ml-1 text-gray-400">(skip update prompt for reviewers)</span>
+                  </label>
+                  <input
+                    value={storeForm.ios_review_version}
+                    onChange={(e) => setStoreForm({ ...storeForm, ios_review_version: e.target.value })}
+                    placeholder="e.g. 1.3.0"
+                    className="mt-1 w-full border rounded-md px-3 py-1.5 text-sm outline-none focus:border-brand-500 bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Store URLs */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-600 flex items-center gap-1.5">
+                  <Svg className="w-3.5 h-3.5 text-green-600">
+                    <path d="M5 16L3 5l5.5 5 3.5-7 3.5 7L21 5l-2 11H5Z" />
+                  </Svg>
+                  Google Play URL
+                </label>
+                <input
+                  value={storeForm.play_store_url}
+                  onChange={(e) => setStoreForm({ ...storeForm, play_store_url: e.target.value })}
+                  placeholder="https://play.google.com/store/apps/details?id=com.example.app"
+                  className="mt-1 w-full border rounded-md px-3 py-1.5 text-sm outline-none focus:border-brand-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 flex items-center gap-1.5">
+                  <Svg className="w-3.5 h-3.5 text-gray-600">
+                    <path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4Z" />
+                    <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
+                  </Svg>
+                  App Store URL
+                </label>
+                <input
+                  value={storeForm.app_store_url}
+                  onChange={(e) => setStoreForm({ ...storeForm, app_store_url: e.target.value })}
+                  placeholder="https://apps.apple.com/app/id000000000"
+                  className="mt-1 w-full border rounded-md px-3 py-1.5 text-sm outline-none focus:border-brand-500 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Info note */}
+            <div className="flex gap-2 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg p-3">
+              <Svg className="w-4 h-4 text-blue-400 shrink-0 mt-0.5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </Svg>
+              <span>
+                When a store URL is set, the app redirects users to the store instead of downloading the APK.
+                Set <strong>Review Version</strong> to the version currently under store review — users on that version will not be prompted, so reviewers can test without interruption.
+              </span>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={storeSaving}
+                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+              >
+                {storeSaving ? "Saving…" : "Save Store Config"}
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* ── Upload form ── */}
