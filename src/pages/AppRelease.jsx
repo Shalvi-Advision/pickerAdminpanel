@@ -151,12 +151,14 @@ export default function AppRelease() {
 
     setUploading(true); setApkErr(""); setApkSuccess(""); setProgress(0);
 
+    // Text fields MUST come before the file — multer's filename callback fires
+    // when the file stream starts, before later fields are parsed.
     const fd = new FormData();
-    fd.append("apk", apkFile);
     fd.append("version_code", apkForm.version_code);
     fd.append("version_name", apkForm.version_name);
     fd.append("release_notes", apkForm.release_notes);
     fd.append("apk_force_update", String(apkForm.apk_force_update));
+    fd.append("apk", apkFile);
 
     try {
       const res = await api.post("/super-admin/app-release", fd, {
