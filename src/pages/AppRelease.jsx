@@ -248,7 +248,7 @@ export default function AppRelease() {
         </div>
 
         {/* ── Live Version Status ── */}
-        {!loading && current && (
+        {!loading && (
           <div className="bg-white border rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center">
@@ -266,74 +266,108 @@ export default function AppRelease() {
                 {activeChannel.label}
               </span>
             </div>
-            <div className="flex flex-wrap gap-4 items-start">
-              {channel === "apk" && current.version_name && (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
-                    <Svg className="w-5 h-5 text-brand-600">
-                      <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1" />
-                      <polyline points="16 6 12 2 8 6" />
-                      <line x1="12" y1="2" x2="12" y2="15" />
-                    </Svg>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-black text-gray-900">{current.version_name}</div>
-                    <div className="text-xs text-gray-400">Build {current.version_code} · {current.file_size_mb} MB</div>
-                  </div>
-                </div>
-              )}
-              {channel === "store" && (current.android_latest_version || current.ios_latest_version) && (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                    <Svg className="w-5 h-5 text-indigo-600">
-                      <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
-                      <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2" />
-                    </Svg>
-                  </div>
-                  <div className="space-y-1">
-                    {current.android_latest_version && (
-                      <div className="text-sm font-semibold text-gray-800">Android {current.android_latest_version}
-                        {current.android_review_version && <span className="ml-2 text-xs text-gray-400 font-normal">review: {current.android_review_version}</span>}
-                      </div>
-                    )}
-                    {current.ios_latest_version && (
-                      <div className="text-sm font-semibold text-gray-800">iOS {current.ios_latest_version}
-                        {current.ios_review_version && <span className="ml-2 text-xs text-gray-400 font-normal">review: {current.ios_review_version}</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 text-xs items-center">
-                {channel === "apk" && (
-                  <span className={`px-2 py-0.5 rounded-full font-semibold ${current.apk_force_update ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                    {current.apk_force_update ? "Force ON" : "Force OFF"}
-                  </span>
-                )}
-                {channel === "store" && (
-                  <span className={`px-2 py-0.5 rounded-full font-semibold ${current.store_force_update ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                    {current.store_force_update ? "Force ON" : "Force OFF"}
-                  </span>
-                )}
-                {current.published_at && channel === "apk" && (
-                  <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                    {new Date(current.published_at).toLocaleString()}
-                  </span>
-                )}
-                {current.play_store_url && channel === "store" && (
-                  <a href={current.play_store_url} target="_blank" rel="noreferrer"
-                    className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100 hover:underline">
-                    Play Store ↗
-                  </a>
-                )}
-                {current.app_store_url && channel === "store" && (
-                  <a href={current.app_store_url} target="_blank" rel="noreferrer"
-                    className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200 hover:underline">
-                    App Store ↗
-                  </a>
-                )}
+
+            {/* ── channel: none ── */}
+            {channel === "none" && (
+              <div className="flex items-center gap-3 text-gray-400">
+                <Svg className="w-5 h-5 shrink-0"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></Svg>
+                <span className="text-sm">Updates are off — users won't see any update prompts.</span>
               </div>
-            </div>
+            )}
+
+            {/* ── channel: apk ── */}
+            {channel === "apk" && (
+              current?.version_name ? (
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                      <Svg className="w-5 h-5 text-brand-600">
+                        <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1" />
+                        <polyline points="16 6 12 2 8 6" />
+                        <line x1="12" y1="2" x2="12" y2="15" />
+                      </Svg>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-black text-gray-900">{current.version_name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        Build {current.version_code}
+                        {current.file_size_mb ? ` · ${current.file_size_mb} MB` : ""}
+                        {current.published_at ? ` · ${new Date(current.published_at).toLocaleString()}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs items-center">
+                    <span className={`px-2.5 py-1 rounded-full font-semibold ${current.apk_force_update ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                      {current.apk_force_update ? "Force Update ON" : "Force Update OFF"}
+                    </span>
+                    {current.apk_url && (
+                      <a href={current.apk_url} target="_blank" rel="noreferrer"
+                        className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                        Download APK ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 text-gray-400">
+                  <Svg className="w-5 h-5 shrink-0 text-amber-400"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></Svg>
+                  <span className="text-sm text-amber-700">APK channel is active but no APK has been published yet. Upload one below.</span>
+                </div>
+              )
+            )}
+
+            {/* ── channel: store ── */}
+            {channel === "store" && (
+              (current?.android_latest_version || current?.ios_latest_version) ? (
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                      <Svg className="w-5 h-5 text-indigo-600">
+                        <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
+                        <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2" />
+                      </Svg>
+                    </div>
+                    <div className="space-y-0.5">
+                      {current.android_latest_version && (
+                        <div className="text-sm font-semibold text-gray-800">
+                          Android {current.android_latest_version}
+                          {current.android_review_version && <span className="ml-2 text-xs text-gray-400 font-normal">review: {current.android_review_version}</span>}
+                        </div>
+                      )}
+                      {current.ios_latest_version && (
+                        <div className="text-sm font-semibold text-gray-800">
+                          iOS {current.ios_latest_version}
+                          {current.ios_review_version && <span className="ml-2 text-xs text-gray-400 font-normal">review: {current.ios_review_version}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs items-center">
+                    <span className={`px-2.5 py-1 rounded-full font-semibold ${current.store_force_update ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                      {current.store_force_update ? "Force Update ON" : "Force Update OFF"}
+                    </span>
+                    {current.play_store_url && (
+                      <a href={current.play_store_url} target="_blank" rel="noreferrer"
+                        className="px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-100 hover:underline">
+                        Play Store ↗
+                      </a>
+                    )}
+                    {current.app_store_url && (
+                      <a href={current.app_store_url} target="_blank" rel="noreferrer"
+                        className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-200 hover:underline">
+                        App Store ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Svg className="w-5 h-5 shrink-0 text-amber-400"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></Svg>
+                  <span className="text-sm text-amber-700">Store channel is active but no versions are configured yet. Fill in the store config below.</span>
+                </div>
+              )
+            )}
+
           </div>
         )}
 
