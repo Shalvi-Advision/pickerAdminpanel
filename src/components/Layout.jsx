@@ -72,6 +72,16 @@ const NAV = [
       </Icon>
     ),
   },
+  {
+    to: "/app-release",
+    label: "App Release",
+    icon: (
+      <Icon>
+        <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Z" />
+        <path d="M12 8v8M8 12l4-4 4 4" />
+      </Icon>
+    ),
+  },
 ];
 
 function initials(name) {
