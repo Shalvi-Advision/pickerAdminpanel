@@ -36,6 +36,8 @@ export default function WebhookLogs() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [projects, setProjects] = useState([]);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(null);
 
@@ -45,6 +47,7 @@ export default function WebhookLogs() {
     try {
       const params = { limit: LIMIT, skip: s };
       if (statusFilter) params.status = statusFilter;
+      if (projectFilter) params.project_code = projectFilter;
       if (search.trim()) params.order_id = search.trim();
       const r = await api.get("/super-admin/webhook-logs", { params });
       setLogs(r.data.data.logs);
@@ -55,9 +58,22 @@ export default function WebhookLogs() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, search]);
+  }, [statusFilter, projectFilter, search]);
 
   useEffect(() => { load(0); }, [load]);
+
+  // Load project codes once to populate the Project filter dropdown.
+  useEffect(() => {
+    api.get("/super-admin/project-stores")
+      .then((r) => {
+        const codes = (r.data.data || [])
+          .map((p) => p.project_code)
+          .filter(Boolean)
+          .sort();
+        setProjects([...new Set(codes)]);
+      })
+      .catch(() => {});
+  }, []);
 
   const totalPages = Math.ceil(total / LIMIT);
   const currentPage = Math.floor(skip / LIMIT) + 1;
@@ -94,6 +110,19 @@ export default function WebhookLogs() {
               <option value="">All</option>
               {STATUSES.map((s) => (
                 <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Project</label>
+            <select
+              value={projectFilter}
+              onChange={(e) => { setProjectFilter(e.target.value); }}
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="">All</option>
+              {projects.map((p) => (
+                <option key={p} value={p}>{p}</option>
               ))}
             </select>
           </div>
