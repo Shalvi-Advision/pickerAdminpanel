@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE || "http://187.127.164.170:3000/api";
+const baseURL = import.meta.env.VITE_API_BASE || "https://pickerapi.shalviadvision.com/api";
 
 const api = axios.create({ baseURL });
 

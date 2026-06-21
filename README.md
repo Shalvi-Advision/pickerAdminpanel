@@ -74,7 +74,7 @@ npm run dev      # http://localhost:5173
 The API base URL is read from `.env`:
 
 ```
-VITE_API_BASE=http://187.127.164.170:3000/api
+VITE_API_BASE=https://pickerapi.shalviadvision.com/api
 ```
 
 For a production build:
