@@ -37,6 +37,14 @@ function mapsUrl(lat, lng) {
   return osmPointUrl(lat, lng);
 }
 
+// "23.02145, 72.57132" or null when either coordinate is missing/invalid.
+function fmtCoords(lat, lng) {
+  const la = parseFloat(lat);
+  const lo = parseFloat(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  return `${la.toFixed(5)}, ${lo.toFixed(5)}`;
+}
+
 // The order has been picked through the mobile app: prefer the picker's recorded
 // status, otherwise fall back to the raw field on the order item.
 function itemStatus(it) {
@@ -80,6 +88,7 @@ export default function OrderDetail() {
   const pod = da?.proof_of_delivery;
   const rider = da?.rider_id;
   const mapLink = mapsUrl(order?.latitude, order?.longitude);
+  const coords = fmtCoords(order?.latitude, order?.longitude);
 
   return (
     <>
@@ -116,6 +125,24 @@ export default function OrderDetail() {
               <div>
                 <span className="text-gray-500">Address</span>
                 <p className="text-gray-900">{order.delivery_details || "—"}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Coordinates:</span>
+                  {coords ? (
+                    <>
+                      <span className="font-mono text-xs text-gray-700">{coords}</span>
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard?.writeText(coords)}
+                        title="Copy coordinates"
+                        className="text-xs text-brand-600 hover:underline"
+                      >
+                        Copy
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400">not available</span>
+                  )}
+                </div>
               </div>
               <div>
                 <span className="text-gray-500">Delivery date</span>
