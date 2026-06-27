@@ -113,7 +113,9 @@ export default function Deliveries() {
         }
       />
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 max-w-7xl">
-        {locations.length > 0 && <RiderLocationsMap locations={locations} />}
+        {(locations.length > 0 || rows.length > 0) && (
+          <RiderLocationsMap locations={locations} orders={rows} />
+        )}
 
         {locations.length > 0 && (
           <div className="bg-white rounded-xl border p-4">
