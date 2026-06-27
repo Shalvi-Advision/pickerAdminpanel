@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
@@ -57,6 +57,7 @@ function fmtDelivery(d) {
 }
 
 export default function Orders() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [projects, setProjects] = useState([]);
   const [stores, setStores] = useState([]);
@@ -64,7 +65,9 @@ export default function Orders() {
   const [err, setErr] = useState("");
   const [projectCode, setProjectCode] = useState("");
   const [status, setStatus] = useState("");
-  const [deliveryStatus, setDeliveryStatus] = useState("");
+  const [deliveryStatus, setDeliveryStatus] = useState(
+    () => searchParams.get("delivery_status") || ""
+  );
   const [storeCode, setStoreCode] = useState("");
   const [sent, setSent] = useState("");
   const [page, setPage] = useState(1);

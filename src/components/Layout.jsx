@@ -45,6 +45,17 @@ const NAV = [
     ),
   },
   {
+    to: "/riders",
+    label: "Riders",
+    icon: (
+      <Icon>
+        <path d="M3 11h3l2-3h8l2 3h3v8H3v-8Z" />
+        <circle cx="7.5" cy="17.5" r="1.5" />
+        <circle cx="16.5" cy="17.5" r="1.5" />
+      </Icon>
+    ),
+  },
+  {
     to: "/orders",
     label: "Orders",
     icon: (

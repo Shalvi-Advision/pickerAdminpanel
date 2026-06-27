@@ -14,6 +14,9 @@ const ICONS = {
   store: (
     <path d="M3 9 4 4h16l1 5M3 9h18M3 9v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9M9 21v-6h6v6" />
   ),
+  delivery: (
+    <path d="M3 11h3l2-3h8l2 3h3v8H3v-8Z M7.5 17.5m0 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+  ),
 };
 
 const ACCENTS = {
@@ -147,7 +150,7 @@ export default function Dashboard() {
           <Kpi
             label="Total Users"
             value={counts.users}
-            hint="pickers, managers, admins"
+            hint="pickers, managers, riders, admins"
             icon="users"
             accent="indigo"
             loading={loading}
@@ -178,6 +181,52 @@ export default function Dashboard() {
           />
         </div>
 
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Delivery overview</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <Kpi
+              label="Ready"
+              value={kpis?.delivery?.ready_for_delivery ?? "—"}
+              hint="awaiting rider"
+              icon="delivery"
+              accent="sky"
+              loading={loading}
+            />
+            <Kpi
+              label="Out for delivery"
+              value={kpis?.delivery?.out_for_delivery ?? "—"}
+              hint="in transit"
+              icon="delivery"
+              accent="amber"
+              loading={loading}
+            />
+            <Kpi
+              label="Delivered today"
+              value={kpis?.delivery?.delivered_today ?? "—"}
+              hint="completed POD"
+              icon="delivery"
+              accent="emerald"
+              loading={loading}
+            />
+            <Kpi
+              label="Failed"
+              value={kpis?.delivery?.failed ?? "—"}
+              hint="needs action"
+              icon="delivery"
+              accent="indigo"
+              loading={loading}
+            />
+            <Kpi
+              label="Active riders"
+              value={kpis?.delivery?.active_riders ?? "—"}
+              hint="enabled accounts"
+              icon="users"
+              accent="indigo"
+              loading={loading}
+            />
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-1">
@@ -197,11 +246,18 @@ export default function Dashboard() {
                 accent="indigo"
               />
               <QuickAction
-                to="/orders"
-                title="Review Orders"
-                desc="Track orders across stores"
+                to="/riders"
+                title="View Riders"
+                desc="Delivery workforce & load"
+                icon="delivery"
+                accent="emerald"
+              />
+              <QuickAction
+                to="/orders?delivery_status=ready_for_delivery"
+                title="Ready to deliver"
+                desc="Assign riders to picked orders"
                 icon="orders"
-                accent="sky"
+                accent="amber"
               />
             </div>
           </div>

@@ -15,6 +15,14 @@ const COLORS = {
   super_admin: "bg-rose-100 text-rose-700",
   active: "bg-emerald-100 text-emerald-700",
   inactive: "bg-gray-200 text-gray-600",
+  online: "bg-emerald-100 text-emerald-700",
+  offline: "bg-gray-200 text-gray-600",
+  rider: "bg-cyan-100 text-cyan-800",
+  ready_for_delivery: "bg-cyan-100 text-cyan-800",
+  out_for_delivery: "bg-orange-100 text-orange-800",
+  delivered: "bg-emerald-100 text-emerald-700",
+  failed: "bg-red-100 text-red-700",
+  cancelled: "bg-gray-200 text-gray-600",
 };
 
 export default function Badge({ value, label }) {
