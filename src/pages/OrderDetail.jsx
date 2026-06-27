@@ -11,6 +11,14 @@ function money(v) {
   return isNaN(n) ? "—" : `₹${n.toFixed(2)}`;
 }
 
+// Upgrade http:// asset URLs to https:// so they aren't blocked as mixed
+// content when the panel is served over HTTPS (fixes broken POD/signature
+// images already stored with an http:// origin).
+function secureUrl(u) {
+  if (typeof u !== "string") return u;
+  return u.startsWith("http://") ? "https://" + u.slice("http://".length) : u;
+}
+
 function fmtDt(d) {
   if (!d) return "—";
   const dt = new Date(d);
@@ -180,9 +188,9 @@ export default function OrderDetail() {
                 <div className="text-xs text-gray-500 uppercase mb-2">Proof of delivery</div>
                 <div className="flex flex-wrap gap-2">
                   {pod.photo_urls.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noreferrer">
+                    <a key={url} href={secureUrl(url)} target="_blank" rel="noreferrer">
                       <img
-                        src={url}
+                        src={secureUrl(url)}
                         alt="POD"
                         className="h-20 w-20 object-cover rounded-lg border"
                       />
@@ -195,9 +203,9 @@ export default function OrderDetail() {
                 {pod.signature_url && (
                   <div className="mt-3">
                     <div className="text-xs text-gray-500 uppercase mb-1">Signature</div>
-                    <a href={pod.signature_url} target="_blank" rel="noreferrer">
+                    <a href={secureUrl(pod.signature_url)} target="_blank" rel="noreferrer">
                       <img
-                        src={pod.signature_url}
+                        src={secureUrl(pod.signature_url)}
                         alt="Signature"
                         className="h-16 max-w-xs object-contain rounded border bg-white"
                       />
