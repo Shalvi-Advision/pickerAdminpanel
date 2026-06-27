@@ -4,6 +4,7 @@ import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import Pagination from "../components/Pagination.jsx";
+import RiderLocationsMap from "../components/RiderLocationsMap.jsx";
 
 const TABS = [
   { key: "", label: "All" },
@@ -47,7 +48,11 @@ export default function Deliveries() {
 
   useEffect(() => {
     api.get("/super-admin/stores").then((r) => setStores(r.data.data || [])).catch(() => {});
-    api.get("/super-admin/riders/locations").then((r) => setLocations(r.data.data || [])).catch(() => {});
+    const loadLocs = () =>
+      api.get("/super-admin/riders/locations").then((r) => setLocations(r.data.data || [])).catch(() => {});
+    loadLocs();
+    const id = setInterval(loadLocs, 30000);
+    return () => clearInterval(id);
   }, []);
 
   async function load() {
@@ -107,6 +112,8 @@ export default function Deliveries() {
         }
       />
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 max-w-7xl">
+        {locations.length > 0 && <RiderLocationsMap locations={locations} />}
+
         {locations.length > 0 && (
           <div className="bg-white rounded-xl border p-4">
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
