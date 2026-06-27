@@ -88,10 +88,25 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
     }
   }, [collapsed]);
 
-  // When the container resizes (size change / expand), Leaflet must recompute.
+  // When the container resizes (size change / expand), Leaflet must recompute
+  // its viewport or it paints a blank/gray area. A ResizeObserver fires exactly
+  // when the element's box changes — more reliable than a fixed timeout.
+  useEffect(() => {
+    if (collapsed || !containerRef.current) return;
+    const el = containerRef.current;
+    const ping = () => mapRef.current && mapRef.current.invalidateSize();
+    const ro = new ResizeObserver(() => {
+      // double-rAF so we measure after the browser has painted the new height
+      requestAnimationFrame(() => requestAnimationFrame(ping));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [collapsed]);
+
+  // Also nudge immediately on an explicit size switch (covers same-size remounts).
   useEffect(() => {
     if (collapsed || !mapRef.current) return;
-    const t = setTimeout(() => mapRef.current?.invalidateSize(), 250);
+    const t = setTimeout(() => mapRef.current && mapRef.current.invalidateSize(), 60);
     return () => clearTimeout(t);
   }, [size, collapsed]);
 
