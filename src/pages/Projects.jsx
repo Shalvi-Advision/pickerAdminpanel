@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
+import { osmPointUrl } from "../utils/osmLinks.js";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,7 +135,7 @@ function StoreLocationModal({ store, onClose, onSaved }) {
 
   const mapsUrl =
     latitude && longitude
-      ? `https://www.google.com/maps?q=${encodeURIComponent(latitude)},${encodeURIComponent(longitude)}`
+      ? osmPointUrl(latitude, longitude)
       : null;
 
   return (
@@ -153,7 +154,7 @@ function StoreLocationModal({ store, onClose, onSaved }) {
         </div>
 
         <p className="text-xs text-gray-500 mb-4">
-          Origin coordinates for delivery route optimization and Google Maps navigation.
+          Origin coordinates for delivery route optimization and OpenStreetMap navigation.
         </p>
 
         <div className="space-y-3">
@@ -196,7 +197,7 @@ function StoreLocationModal({ store, onClose, onSaved }) {
             rel="noreferrer"
             className="inline-flex items-center gap-1 mt-3 text-xs text-brand-600 hover:underline"
           >
-            Preview on Google Maps
+            Preview on OpenStreetMap
           </a>
         )}
 

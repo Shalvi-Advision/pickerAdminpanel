@@ -5,6 +5,7 @@ import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import Pagination from "../components/Pagination.jsx";
 import RiderLocationsMap from "../components/RiderLocationsMap.jsx";
+import { osmPointUrl } from "../utils/osmLinks.js";
 
 const TABS = [
   { key: "", label: "All" },
@@ -123,7 +124,7 @@ export default function Deliveries() {
               {locations.map((loc) => (
                 <a
                   key={loc.rider_id}
-                  href={`https://www.google.com/maps?q=${loc.last_location.latitude},${loc.last_location.longitude}`}
+                  href={osmPointUrl(loc.last_location.latitude, loc.last_location.longitude)}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-gray-50 hover:bg-gray-100 text-sm"

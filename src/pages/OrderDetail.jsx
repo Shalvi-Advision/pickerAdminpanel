@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
+import { osmPointUrl } from "../utils/osmLinks.js";
 
 function money(v) {
   if (v == null || v === "") return "—";
@@ -25,8 +26,7 @@ function fmtDt(d) {
 }
 
 function mapsUrl(lat, lng) {
-  if (!lat || !lng) return null;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
+  return osmPointUrl(lat, lng);
 }
 
 // The order has been picked through the mobile app: prefer the picker's recorded
