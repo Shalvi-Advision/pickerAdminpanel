@@ -5,6 +5,7 @@ import PageHeader from "../components/PageHeader.jsx";
 const EDITABLE_ROLES = [
   { value: "picker", label: "Picker" },
   { value: "manager", label: "Manager" },
+  { value: "rider", label: "Rider" },
   { value: "admin", label: "Admin (mobile)" },
 ];
 

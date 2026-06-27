@@ -6,6 +6,14 @@ import Badge from "../components/Badge.jsx";
 import Pagination from "../components/Pagination.jsx";
 
 const STATUSES = ["pending", "assigned", "in_progress", "completed", "rejected"];
+const DELIVERY_STATUSES = [
+  "ready_for_delivery",
+  "assigned",
+  "out_for_delivery",
+  "delivered",
+  "failed",
+  "cancelled",
+];
 const PER_PAGE = 25;
 
 // order_date comes from the e-commerce source as IST with no TZ marker.
@@ -56,13 +64,14 @@ export default function Orders() {
   const [err, setErr] = useState("");
   const [projectCode, setProjectCode] = useState("");
   const [status, setStatus] = useState("");
+  const [deliveryStatus, setDeliveryStatus] = useState("");
   const [storeCode, setStoreCode] = useState("");
   const [sent, setSent] = useState("");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
 
   // Reset to page 1 whenever filters or search change
-  useEffect(() => { setPage(1); }, [projectCode, status, storeCode, sent, search]);
+  useEffect(() => { setPage(1); }, [projectCode, status, deliveryStatus, storeCode, sent, search]);
 
   // Load distinct project codes once
   useEffect(() => {
@@ -87,6 +96,7 @@ export default function Orders() {
       const params = {};
       if (projectCode) params.project_code = projectCode;
       if (status) params.status = status;
+      if (deliveryStatus) params.delivery_status = deliveryStatus;
       if (storeCode) params.store_code = storeCode;
       if (sent) params.sent = sent;
       if (search.trim()) params.order_id = search.trim();
@@ -102,7 +112,7 @@ export default function Orders() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode, status, storeCode, sent, search]);
+  }, [projectCode, status, deliveryStatus, storeCode, sent, search]);
 
   const pagedOrders = orders.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -152,6 +162,21 @@ export default function Orders() {
               <option value="">All stores</option>
               {stores.map((s) => (
                 <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Delivery status</label>
+            <select
+              value={deliveryStatus}
+              onChange={(e) => setDeliveryStatus(e.target.value)}
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="">All</option>
+              {DELIVERY_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replaceAll("_", " ")}
+                </option>
               ))}
             </select>
           </div>
@@ -212,7 +237,9 @@ export default function Orders() {
                     <th className="text-left px-4 py-2">Items</th>
                     <th className="text-left px-4 py-2">Amount</th>
                     <th className="text-left px-4 py-2">Status</th>
-                    <th className="text-left px-4 py-2">Assigned To</th>
+                    <th className="text-left px-4 py-2">Delivery</th>
+                    <th className="text-left px-4 py-2">Picker</th>
+                    <th className="text-left px-4 py-2">Rider</th>
                     <th className="text-left px-4 py-2">Sent</th>
                     <th className="text-right px-4 py-2"></th>
                   </tr>
@@ -236,8 +263,14 @@ export default function Orders() {
                       <td className="px-4 py-2">
                         <Badge value={o.status} />
                       </td>
+                      <td className="px-4 py-2">
+                        {o.delivery_status ? <Badge value={o.delivery_status} /> : "—"}
+                      </td>
                       <td className="px-4 py-2 text-gray-700">
                         {o.current_assignment?.assigned_to?.name || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {o.current_delivery_assignment?.rider_id?.name || "—"}
                       </td>
                       <td className="px-4 py-2">
                         {o.sent_to_super_admin ? (

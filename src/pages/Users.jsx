@@ -6,11 +6,12 @@ import Modal from "../components/Modal.jsx";
 import Pagination from "../components/Pagination.jsx";
 
 const PER_PAGE = 20;
-const MOBILE_ROLES = ["picker", "manager", "admin"];
+const MOBILE_ROLES = ["picker", "manager", "admin", "rider"];
 
 const ROLE_OPTIONS = [
   { value: "picker", label: "Picker" },
   { value: "manager", label: "Manager" },
+  { value: "rider", label: "Rider" },
   { value: "admin", label: "Admin (mobile)" },
   { value: "super_admin", label: "Super Admin (web panel)" },
 ];
@@ -93,6 +94,7 @@ export default function Users() {
       admin: filtered.filter((u) => u.role === "admin"),
       manager: filtered.filter((u) => u.role === "manager"),
       picker: filtered.filter((u) => u.role === "picker"),
+      rider: filtered.filter((u) => u.role === "rider"),
     };
   }, [filtered]);
 
@@ -133,6 +135,7 @@ export default function Users() {
     admin: pagedUsers.filter((u) => u.role === "admin"),
     manager: pagedUsers.filter((u) => u.role === "manager"),
     picker: pagedUsers.filter((u) => u.role === "picker"),
+    rider: pagedUsers.filter((u) => u.role === "rider"),
   }), [pagedUsers]);
 
   function openCreate() {
@@ -351,7 +354,7 @@ export default function Users() {
                   </tr>
                 </thead>
                 <tbody>
-                  {["super_admin", "admin", "manager", "picker"].flatMap((role) => {
+                  {["super_admin", "admin", "manager", "picker", "rider"].flatMap((role) => {
                     const list = pagedGrouped[role];
                     if (!list.length) return [];
                     return [
