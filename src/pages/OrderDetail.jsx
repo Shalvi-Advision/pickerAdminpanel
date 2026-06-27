@@ -45,6 +45,35 @@ function fmtCoords(lat, lng) {
   return `${la.toFixed(5)}, ${lo.toFixed(5)}`;
 }
 
+// Opens an asset (POD photo / signature) in a new tab via an eye icon button,
+// avoiding inline image rendering altogether.
+function ViewLink({ href, label }) {
+  return (
+    <a
+      href={secureUrl(href)}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-white hover:bg-gray-50 text-sm text-gray-700"
+      title={`View ${label}`}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4 text-brand-600"
+      >
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+      View {label}
+    </a>
+  );
+}
+
 // The order has been picked through the mobile app: prefer the picker's recorded
 // status, otherwise fall back to the raw field on the order item.
 function itemStatus(it) {
@@ -214,14 +243,12 @@ export default function OrderDetail() {
               <div>
                 <div className="text-xs text-gray-500 uppercase mb-2">Proof of delivery</div>
                 <div className="flex flex-wrap gap-2">
-                  {pod.photo_urls.map((url) => (
-                    <a key={url} href={secureUrl(url)} target="_blank" rel="noreferrer">
-                      <img
-                        src={secureUrl(url)}
-                        alt="POD"
-                        className="h-20 w-20 object-cover rounded-lg border"
-                      />
-                    </a>
+                  {pod.photo_urls.map((url, i) => (
+                    <ViewLink
+                      key={url}
+                      href={url}
+                      label={pod.photo_urls.length > 1 ? `photo ${i + 1}` : "photo"}
+                    />
                   ))}
                 </div>
                 {pod.notes && (
@@ -230,13 +257,7 @@ export default function OrderDetail() {
                 {pod.signature_url && (
                   <div className="mt-3">
                     <div className="text-xs text-gray-500 uppercase mb-1">Signature</div>
-                    <a href={secureUrl(pod.signature_url)} target="_blank" rel="noreferrer">
-                      <img
-                        src={secureUrl(pod.signature_url)}
-                        alt="Signature"
-                        className="h-16 max-w-xs object-contain rounded border bg-white"
-                      />
-                    </a>
+                    <ViewLink href={pod.signature_url} label="signature" />
                   </div>
                 )}
               </div>
