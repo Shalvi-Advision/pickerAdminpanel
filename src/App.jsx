@@ -8,6 +8,7 @@ import Roles from "./pages/Roles.jsx";
 import Orders from "./pages/Orders.jsx";
 import OrderDetail from "./pages/OrderDetail.jsx";
 import Riders from "./pages/Riders.jsx";
+import Deliveries from "./pages/Deliveries.jsx";
 import Projects from "./pages/Projects.jsx";
 import WebhookLogs from "./pages/WebhookLogs.jsx";
 import AppRelease from "./pages/AppRelease.jsx";
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
         <Route path="riders" element={<Riders />} />
+        <Route path="deliveries" element={<Deliveries />} />
         <Route path="projects" element={<Projects />} />
         <Route path="webhook-logs" element={<WebhookLogs />} />
         <Route path="app-release" element={<AppRelease />} />

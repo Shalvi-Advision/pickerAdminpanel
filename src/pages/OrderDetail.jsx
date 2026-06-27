@@ -113,6 +113,10 @@ export default function OrderDetail() {
                 <span className="text-gray-500">Delivery date</span>
                 <p className="text-gray-900">{order.delivery_date || "—"}</p>
               </div>
+              <div>
+                <span className="text-gray-500">Delivery slot</span>
+                <p className="text-gray-900">{order.delivery_slot || "—"}</p>
+              </div>
               {rider && (
                 <div>
                   <span className="text-gray-500">Rider</span>
@@ -146,6 +150,18 @@ export default function OrderDetail() {
                       <p className="text-red-700">{da.failed_reason}</p>
                     </div>
                   )}
+                  {da.delivery_otp && da.status === "out_for_delivery" && (
+                    <div>
+                      <span className="text-gray-500">Delivery OTP (testing)</span>
+                      <p className="font-mono text-gray-900">{da.delivery_otp}</p>
+                    </div>
+                  )}
+                  {da.stop_sequence && (
+                    <div>
+                      <span className="text-gray-500">Route stop</span>
+                      <p className="text-gray-900">#{da.stop_sequence}</p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -175,6 +191,18 @@ export default function OrderDetail() {
                 </div>
                 {pod.notes && (
                   <p className="text-sm text-gray-600 mt-2">Notes: {pod.notes}</p>
+                )}
+                {pod.signature_url && (
+                  <div className="mt-3">
+                    <div className="text-xs text-gray-500 uppercase mb-1">Signature</div>
+                    <a href={pod.signature_url} target="_blank" rel="noreferrer">
+                      <img
+                        src={pod.signature_url}
+                        alt="Signature"
+                        className="h-16 max-w-xs object-contain rounded border bg-white"
+                      />
+                    </a>
+                  </div>
                 )}
               </div>
             )}
