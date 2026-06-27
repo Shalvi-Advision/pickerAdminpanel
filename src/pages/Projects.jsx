@@ -106,6 +106,119 @@ function StoreUsersDrawer({ projectCode, storeCode, onClose }) {
   );
 }
 
+function StoreLocationModal({ store, onClose, onSaved }) {
+  const [latitude, setLatitude] = useState(store.latitude ?? "");
+  const [longitude, setLongitude] = useState(store.longitude ?? "");
+  const [address, setAddress] = useState(store.address ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+    try {
+      await api.patch(`/super-admin/project-stores/${store._id}`, {
+        latitude: latitude.trim() || null,
+        longitude: longitude.trim() || null,
+        address: address.trim() || null,
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to save location");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const mapsUrl =
+    latitude && longitude
+      ? `https://www.google.com/maps?q=${encodeURIComponent(latitude)},${encodeURIComponent(longitude)}`
+      : null;
+
+  return (
+    <Overlay onClose={onClose}>
+      <form onSubmit={handleSubmit} className="p-5 w-[90vw] max-w-md">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Store location</h2>
+            <p className="text-xs text-gray-500 mt-0.5 font-mono">{store.store_code}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 mb-4">
+          Origin coordinates for delivery route optimization and Google Maps navigation.
+        </p>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Latitude</label>
+              <input
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                placeholder="19.0760"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Longitude</label>
+              <input
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                placeholder="72.8777"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Address (optional)</label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              rows={2}
+              placeholder="Store pickup address"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+
+        {mapsUrl && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 mt-3 text-xs text-brand-600 hover:underline"
+          >
+            Preview on Google Maps
+          </a>
+        )}
+
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </form>
+    </Overlay>
+  );
+}
+
 function AddMappingModal({ onClose, onAdded }) {
   const [projectCode, setProjectCode] = useState("");
   const [storeCode,   setStoreCode]   = useState("");
@@ -198,6 +311,7 @@ export default function Projects() {
   const [expanded, setExpanded]       = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [drawer, setDrawer]           = useState(null); // { projectCode, storeCode }
+  const [locationEdit, setLocationEdit] = useState(null); // store row
   const [deletingId, setDeletingId]   = useState(null);
   const [toast, setToast]             = useState("");
   const [syncing, setSyncing]         = useState(false);
@@ -355,6 +469,7 @@ export default function Projects() {
                       <thead>
                         <tr className="bg-gray-50 text-xs text-gray-500">
                           <th className="text-left px-5 py-2 font-medium">Store Code</th>
+                          <th className="text-left px-5 py-2 font-medium">Location</th>
                           <th className="text-left px-5 py-2 font-medium">Users</th>
                           <th className="px-5 py-2" />
                         </tr>
@@ -364,6 +479,23 @@ export default function Projects() {
                           <tr key={s._id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-5 py-3 font-mono font-medium text-gray-800">
                               {s.store_code}
+                            </td>
+                            <td className="px-5 py-3">
+                              <button
+                                onClick={() => setLocationEdit(s)}
+                                className="text-left text-xs hover:text-brand-700"
+                              >
+                                {s.latitude && s.longitude ? (
+                                  <span className="text-emerald-700 font-medium">
+                                    {s.latitude}, {s.longitude}
+                                  </span>
+                                ) : (
+                                  <span className="text-amber-600 font-medium">Set coordinates</span>
+                                )}
+                                {s.address && (
+                                  <div className="text-gray-400 truncate max-w-[180px]">{s.address}</div>
+                                )}
+                              </button>
                             </td>
                             <td className="px-5 py-3">
                               <button
@@ -409,6 +541,16 @@ export default function Projects() {
           projectCode={drawer.projectCode}
           storeCode={drawer.storeCode}
           onClose={() => setDrawer(null)}
+        />
+      )}
+      {locationEdit && (
+        <StoreLocationModal
+          store={locationEdit}
+          onClose={() => setLocationEdit(null)}
+          onSaved={() => {
+            load();
+            showToast("Store location saved");
+          }}
         />
       )}
 
