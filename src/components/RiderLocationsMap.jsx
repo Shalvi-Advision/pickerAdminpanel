@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -22,6 +22,15 @@ const STATUS_COLOR = {
   delivered: "#16a34a", // green
   failed: "#dc2626", // red
 };
+
+// Map height presets the admin can switch between (persisted in localStorage).
+const SIZES = {
+  S: { label: "S", h: "h-56" }, // 14rem
+  M: { label: "M", h: "h-72" }, // 18rem (default)
+  L: { label: "L", h: "h-[32rem]" },
+};
+const SIZE_KEY = "deliveriesMapSize";
+const COLLAPSE_KEY = "deliveriesMapCollapsed";
 
 // A small circular "order" pin (box icon) rendered as a divIcon.
 function orderIcon(color) {
@@ -58,8 +67,36 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
+  const [size, setSize] = useState(() => {
+    const saved = localStorage.getItem(SIZE_KEY);
+    return saved && SIZES[saved] ? saved : "M";
+  });
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem(COLLAPSE_KEY) === "1"
+  );
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    localStorage.setItem(SIZE_KEY, size);
+  }, [size]);
+  useEffect(() => {
+    localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
+    // Collapsing unmounts the container; destroy the map so expand rebuilds clean.
+    if (collapsed && mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+      markersRef.current = [];
+    }
+  }, [collapsed]);
+
+  // When the container resizes (size change / expand), Leaflet must recompute.
+  useEffect(() => {
+    if (collapsed || !mapRef.current) return;
+    const t = setTimeout(() => mapRef.current?.invalidateSize(), 250);
+    return () => clearTimeout(t);
+  }, [size, collapsed]);
+
+  useEffect(() => {
+    if (collapsed || !containerRef.current) return;
 
     // First valid coordinate (rider or order) seeds the initial view.
     const seed =
@@ -124,7 +161,7 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
     } else if (bounds.length === 1) {
       mapRef.current.setView(bounds[0], 14);
     }
-  }, [locations, orders]);
+  }, [locations, orders, collapsed]);
 
   useEffect(() => {
     return () => {
@@ -142,19 +179,54 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
 
   return (
     <div className="bg-white rounded-xl border overflow-hidden">
-      <div className="px-4 py-3 border-b flex items-center justify-between">
+      <div className="px-4 py-3 border-b flex items-center justify-between gap-3 flex-wrap">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
           Live rider &amp; order map
         </span>
-        <div className="flex flex-wrap gap-3 text-[11px] text-gray-500">
-          <Legend color="#2563eb" label="Rider" pin />
-          <Legend color="#f59e0b" label="Out" />
-          <Legend color="#2563eb" label="Assigned" />
-          <Legend color="#16a34a" label="Delivered" />
-          <Legend color="#dc2626" label="Failed" />
+        <div className="flex items-center gap-3 flex-wrap">
+          {!collapsed && (
+            <div className="hidden md:flex flex-wrap gap-3 text-[11px] text-gray-500">
+              <Legend color="#2563eb" label="Rider" pin />
+              <Legend color="#f59e0b" label="Out" />
+              <Legend color="#2563eb" label="Assigned" />
+              <Legend color="#16a34a" label="Delivered" />
+              <Legend color="#dc2626" label="Failed" />
+            </div>
+          )}
+          {/* Size switcher */}
+          {!collapsed && (
+            <div className="flex items-center rounded-lg border bg-gray-50 p-0.5">
+              {Object.entries(SIZES).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSize(key)}
+                  title={`${cfg.label === "S" ? "Small" : cfg.label === "M" ? "Medium" : "Large"} map`}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    size === key
+                      ? "bg-brand-600 text-white"
+                      : "text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {cfg.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Collapse / expand */}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="text-xs border bg-white hover:bg-gray-50 px-2.5 py-1.5 rounded-lg text-gray-600"
+            title={collapsed ? "Show map" : "Hide map"}
+          >
+            {collapsed ? "▸ Show map" : "▾ Hide map"}
+          </button>
         </div>
       </div>
-      <div ref={containerRef} className="h-72 w-full z-0" />
+      {!collapsed && (
+        <div ref={containerRef} className={`${SIZES[size].h} w-full z-0`} />
+      )}
     </div>
   );
 }
