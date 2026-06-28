@@ -1,8 +1,28 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 
 const STATUSES = ["success", "skipped", "auth_failed", "validation_failed", "error"];
+
+const EVENT_TYPES = [
+  { value: "", label: "All events" },
+  { value: "order_receive", label: "New order" },
+  { value: "order_cancel", label: "Cancel order" },
+  { value: "order_assign_rider", label: "Assign rider" },
+];
+
+const EVENT_LABELS = {
+  order_receive: "New order",
+  order_cancel: "Cancel",
+  order_assign_rider: "Assign rider",
+};
+
+const EVENT_STYLE = {
+  order_receive: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
+  order_cancel: "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
+  order_assign_rider: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
+};
+
 const LIMIT = 100;
 
 function fmtTs(d) {
@@ -29,6 +49,61 @@ function StatusPill({ value }) {
   );
 }
 
+function EventPill({ value }) {
+  const key = value || "order_receive";
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EVENT_STYLE[key] || "bg-gray-100 text-gray-600"}`}>
+      {EVENT_LABELS[key] || key?.replace(/_/g, " ") || "New order"}
+    </span>
+  );
+}
+
+function MetadataDetail({ log }) {
+  const m = log.metadata;
+  if (!m || typeof m !== "object") return null;
+
+  if (log.event_type === "order_cancel") {
+    return (
+      <div className="space-y-1 text-xs text-gray-700">
+        {m.reason && (
+          <div><span className="font-medium text-gray-500">Reason:</span> {m.reason}</div>
+        )}
+        {m.already_cancelled && (
+          <div className="text-amber-700">Already cancelled (idempotent)</div>
+        )}
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <span>Picker assignments cancelled: <strong>{m.picker_assignments_cancelled ?? 0}</strong></span>
+          <span>Rider assignments cancelled: <strong>{m.delivery_assignments_cancelled ?? 0}</strong></span>
+          <span>Routes updated: <strong>{m.routes_updated ?? 0}</strong></span>
+        </div>
+      </div>
+    );
+  }
+
+  if (log.event_type === "order_assign_rider") {
+    return (
+      <div className="space-y-1 text-xs text-gray-700">
+        {m.rider_name && (
+          <div><span className="font-medium text-gray-500">Rider:</span> {m.rider_name}{m.rider_email ? ` (${m.rider_email})` : ""}</div>
+        )}
+        {m.use_round_robin && m.round_robin && (
+          <div>
+            Round-robin pool {m.round_robin.riders_in_pool} · index {m.round_robin.rider_index}
+            {" · "}{m.round_robin.store_code}/{m.round_robin.project_code}
+          </div>
+        )}
+        {!m.use_round_robin && (
+          <div className="text-gray-500">Manual rider override (not round-robin)</div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <pre className="text-xs text-gray-600 whitespace-pre-wrap">{JSON.stringify(m, null, 2)}</pre>
+  );
+}
+
 export default function WebhookLogs() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -36,6 +111,7 @@ export default function WebhookLogs() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [eventFilter, setEventFilter] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [projects, setProjects] = useState([]);
   const [search, setSearch] = useState("");
@@ -47,6 +123,7 @@ export default function WebhookLogs() {
     try {
       const params = { limit: LIMIT, skip: s };
       if (statusFilter) params.status = statusFilter;
+      if (eventFilter) params.event_type = eventFilter;
       if (projectFilter) params.project_code = projectFilter;
       if (search.trim()) params.order_id = search.trim();
       const r = await api.get("/super-admin/webhook-logs", { params });
@@ -58,11 +135,10 @@ export default function WebhookLogs() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, projectFilter, search]);
+  }, [statusFilter, eventFilter, projectFilter, search]);
 
   useEffect(() => { load(0); }, [load]);
 
-  // Load project codes once to populate the Project filter dropdown.
   useEffect(() => {
     api.get("/super-admin/project-stores")
       .then((r) => {
@@ -78,11 +154,16 @@ export default function WebhookLogs() {
   const totalPages = Math.ceil(total / LIMIT);
   const currentPage = Math.floor(skip / LIMIT) + 1;
 
+  const eventCounts = EVENT_TYPES.filter((e) => e.value).map((e) => ({
+    ...e,
+    count: logs.filter((l) => (l.event_type || "order_receive") === e.value).length,
+  }));
+
   return (
     <>
       <PageHeader
         title="Webhook Logs"
-        subtitle="Every inbound call to POST /api/webhook/order"
+        subtitle="Inbound webhooks: new order, cancel order, assign rider"
         actions={
           <button
             onClick={() => load(skip)}
@@ -98,13 +179,24 @@ export default function WebhookLogs() {
       />
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-4">
-        {/* Filters + summary */}
         <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-xs text-gray-500">Event</label>
+            <select
+              value={eventFilter}
+              onChange={(e) => setEventFilter(e.target.value)}
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white min-w-[140px]"
+            >
+              {EVENT_TYPES.map((e) => (
+                <option key={e.value || "all"} value={e.value}>{e.label}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="text-xs text-gray-500">Status</label>
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); }}
+              onChange={(e) => setStatusFilter(e.target.value)}
               className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
             >
               <option value="">All</option>
@@ -117,7 +209,7 @@ export default function WebhookLogs() {
             <label className="text-xs text-gray-500">Project</label>
             <select
               value={projectFilter}
-              onChange={(e) => { setProjectFilter(e.target.value); }}
+              onChange={(e) => setProjectFilter(e.target.value)}
               className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
             >
               <option value="">All</option>
@@ -155,46 +247,36 @@ export default function WebhookLogs() {
           </div>
         )}
 
-        {/* Stats row */}
         {!loading && logs.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {STATUSES.map((s) => {
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+            {eventCounts.map((e) => (
+              <div key={e.value} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+                <div className="text-2xl font-bold text-gray-900">{e.count}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{e.label} (page)</div>
+              </div>
+            ))}
+            {STATUSES.filter((s) => ["error", "auth_failed", "validation_failed"].includes(s)).map((s) => {
               const count = logs.filter((l) => l.status === s).length;
-              const isError = ["auth_failed", "validation_failed", "error"].includes(s);
               return (
-                <div key={s} className={`bg-white rounded-xl border shadow-sm px-4 py-3 ${isError && count > 0 ? "border-red-200" : "border-gray-100"}`}>
-                  <div className={`text-2xl font-bold ${isError && count > 0 ? "text-red-600" : "text-gray-900"}`}>
-                    {count}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">{s.replace(/_/g, " ")}</div>
+                <div key={s} className={`bg-white rounded-xl border shadow-sm px-4 py-3 ${count > 0 ? "border-red-200" : "border-gray-100"}`}>
+                  <div className={`text-2xl font-bold ${count > 0 ? "text-red-600" : "text-gray-900"}`}>{count}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{s.replace(/_/g, " ")} (page)</div>
                 </div>
               );
             })}
-            {/* Assign failed — success webhooks where round-robin couldn't assign */}
-            {(() => {
-              const count = logs.filter((l) => l.status === "success" && l.assigned === false).length;
-              return (
-                <div className={`bg-white rounded-xl border shadow-sm px-4 py-3 ${count > 0 ? "border-amber-200" : "border-gray-100"}`}>
-                  <div className={`text-2xl font-bold ${count > 0 ? "text-amber-600" : "text-gray-900"}`}>
-                    {count}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">assign failed</div>
-                </div>
-              );
-            })()}
           </div>
         )}
 
-        {/* Table */}
         {loading ? (
           <div className="text-gray-500">Loading…</div>
         ) : (
           <div className="bg-white rounded-xl border shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
+              <table className="w-full text-sm min-w-[800px]">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                   <tr>
                     <th className="text-left px-4 py-2.5">Received At</th>
+                    <th className="text-left px-4 py-2.5">Event</th>
                     <th className="text-left px-4 py-2.5">Status</th>
                     <th className="text-left px-4 py-2.5">Order #</th>
                     <th className="text-left px-4 py-2.5">Project</th>
@@ -207,14 +289,16 @@ export default function WebhookLogs() {
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <>
+                    <Fragment key={log._id}>
                       <tr
-                        key={log._id}
                         className="border-t hover:bg-gray-50 cursor-pointer"
                         onClick={() => setExpanded(expanded === log._id ? null : log._id)}
                       >
                         <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
                           {fmtTs(log.createdAt)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <EventPill value={log.event_type} />
                         </td>
                         <td className="px-4 py-2.5">
                           <StatusPill value={log.status} />
@@ -229,7 +313,7 @@ export default function WebhookLogs() {
                           {log.store_code || "—"}
                         </td>
                         <td className="px-4 py-2.5 text-gray-700">
-                          {log.items_count ?? "—"}
+                          {log.event_type === "order_receive" ? (log.items_count ?? "—") : "—"}
                         </td>
                         <td className="px-4 py-2.5">
                           {log.assigned === true ? (
@@ -248,11 +332,13 @@ export default function WebhookLogs() {
                         </td>
                       </tr>
 
-                      {/* Expanded detail row */}
                       {expanded === log._id && (
-                        <tr key={`${log._id}-detail`} className="bg-gray-50/80">
-                          <td colSpan="9" className="px-4 py-3">
-                            <div className="space-y-1 text-xs text-gray-700">
+                        <tr className="bg-gray-50/80">
+                          <td colSpan="10" className="px-4 py-3">
+                            <div className="space-y-2 text-xs text-gray-700">
+                              {log.metadata && (
+                                <MetadataDetail log={log} />
+                              )}
                               {log.error_message && (
                                 <div className="flex gap-2">
                                   <span className="font-medium text-red-600 shrink-0">Error:</span>
@@ -265,19 +351,19 @@ export default function WebhookLogs() {
                                   <span>{log.assign_error}</span>
                                 </div>
                               )}
-                              {!log.error_message && !log.assign_error && (
-                                <span className="text-gray-400">No error details.</span>
+                              {!log.error_message && !log.assign_error && !log.metadata && (
+                                <span className="text-gray-400">No extra details.</span>
                               )}
                             </div>
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))}
 
                   {!logs.length && (
                     <tr>
-                      <td colSpan="9" className="px-4 py-12 text-center text-gray-500">
+                      <td colSpan="10" className="px-4 py-12 text-center text-gray-500">
                         No webhook calls recorded yet.
                       </td>
                     </tr>
@@ -286,11 +372,10 @@ export default function WebhookLogs() {
               </table>
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-gray-600">
                 <span>
-                  Page {currentPage} of {totalPages} &nbsp;·&nbsp; {total} total
+                  Page {currentPage} of {totalPages} · {total} total
                 </span>
                 <div className="flex gap-2">
                   <button
