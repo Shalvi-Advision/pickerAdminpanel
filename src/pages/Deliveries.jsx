@@ -31,6 +31,127 @@ function fmtWhen(d) {
   });
 }
 
+// GPS older than this is treated as stale — dot turns amber/gray so the admin
+// can tell a live rider from one whose phone hasn't reported in a while.
+const GPS_FRESH_MS = 5 * 60 * 1000; // 5 min = live
+const GPS_STALE_MS = 30 * 60 * 1000; // >30 min = offline
+
+function gpsFreshness(updatedAt) {
+  const t = updatedAt ? new Date(updatedAt).getTime() : NaN;
+  if (!Number.isFinite(t)) return { dot: "bg-gray-300", label: "no fix" };
+  const age = Date.now() - t;
+  if (age <= GPS_FRESH_MS) return { dot: "bg-emerald-500", label: "live" };
+  if (age <= GPS_STALE_MS) return { dot: "bg-amber-400", label: "idle" };
+  return { dot: "bg-gray-400", label: "offline" };
+}
+
+// How many order chips to show on a card before collapsing into "+N".
+const ORDER_CHIP_LIMIT = 4;
+
+function RiderCard({ loc }) {
+  const lat = loc.last_location?.latitude;
+  const lng = loc.last_location?.longitude;
+  const orders = loc.active_orders || [];
+  const shown = orders.slice(0, ORDER_CHIP_LIMIT);
+  const extra = orders.length - shown.length;
+  const fresh = gpsFreshness(loc.last_location?.updated_at);
+
+  return (
+    <div className="rounded-lg border bg-gray-50/60 hover:bg-gray-50 p-3 flex flex-col gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className={`h-2.5 w-2.5 rounded-full shrink-0 ${fresh.dot}`}
+          title={fresh.label}
+        />
+        <span className="font-semibold text-gray-800 text-sm truncate flex-1">
+          {loc.name}
+        </span>
+        <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700 font-medium shrink-0">
+          {orders.length} order{orders.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between text-[11px] text-gray-400">
+        <span>{fmtWhen(loc.last_location?.updated_at)}</span>
+        {lat && lng && (
+          <a
+            href={osmPointUrl(lat, lng)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-brand-600 hover:underline shrink-0"
+          >
+            View on map ↗
+          </a>
+        )}
+      </div>
+
+      {orders.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {shown.map((id) => (
+            <Link
+              key={id}
+              to={`/orders/${id}`}
+              className="text-[11px] px-1.5 py-0.5 rounded bg-white border text-brand-600 hover:bg-brand-50"
+            >
+              #{id}
+            </Link>
+          ))}
+          {extra > 0 && (
+            <span
+              className="text-[11px] px-1.5 py-0.5 rounded bg-white border text-gray-500"
+              title={orders.map((id) => `#${id}`).join(", ")}
+            >
+              +{extra} more
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LiveRiderGPS({ locations }) {
+  const [q, setQ] = useState("");
+  const term = q.trim().toLowerCase();
+  const filtered = term
+    ? locations.filter(
+        (l) =>
+          l.name?.toLowerCase().includes(term) ||
+          (l.active_orders || []).some((id) => String(id).includes(term))
+      )
+    : locations;
+
+  return (
+    <div className="bg-white rounded-xl border p-4">
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          Live rider GPS ({locations.length})
+        </div>
+        {locations.length > 6 && (
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search rider or order #"
+            className="border rounded-md px-2.5 py-1 text-sm w-56"
+          />
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-sm text-gray-500 py-4 text-center">
+          No riders match “{q}”.
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-h-80 overflow-y-auto pr-1">
+          {filtered.map((loc) => (
+            <RiderCard key={loc.rider_id} loc={loc} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Deliveries() {
   const [rows, setRows] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -130,31 +251,7 @@ export default function Deliveries() {
         )}
 
         {locations.length > 0 && (
-          <div className="bg-white rounded-xl border p-4">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Live rider GPS ({locations.length})
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {locations.map((loc) => (
-                <a
-                  key={loc.rider_id}
-                  href={osmPointUrl(loc.last_location.latitude, loc.last_location.longitude)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-gray-50 hover:bg-gray-100 text-sm"
-                >
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <span className="font-medium">{loc.name}</span>
-                  <span className="text-gray-400 text-xs">
-                    {fmtWhen(loc.last_location.updated_at)}
-                  </span>
-                  {loc.active_orders?.length > 0 && (
-                    <span className="text-xs text-brand-600">#{loc.active_orders.join(", #")}</span>
-                  )}
-                </a>
-              ))}
-            </div>
-          </div>
+          <LiveRiderGPS locations={locations} />
         )}
 
         <div className="flex flex-wrap gap-2">
