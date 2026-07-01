@@ -18,6 +18,7 @@ const Icon = ({ children }) => (
 
 const NAV = [
   {
+    key: "dashboard",
     to: "/dashboard",
     label: "Dashboard",
     icon: (
@@ -27,6 +28,7 @@ const NAV = [
     ),
   },
   {
+    key: "users",
     to: "/users",
     label: "Users",
     icon: (
@@ -36,6 +38,19 @@ const NAV = [
     ),
   },
   {
+    key: "admin_users",
+    to: "/admin-users",
+    label: "Admin Users",
+    icon: (
+      <Icon>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 11l-3 3-1.5-1.5" />
+      </Icon>
+    ),
+  },
+  {
+    key: "roles",
     to: "/roles",
     label: "Roles",
     icon: (
@@ -45,6 +60,7 @@ const NAV = [
     ),
   },
   {
+    key: "riders",
     to: "/riders",
     label: "Riders",
     icon: (
@@ -56,6 +72,7 @@ const NAV = [
     ),
   },
   {
+    key: "deliveries",
     to: "/deliveries",
     label: "Deliveries",
     icon: (
@@ -67,6 +84,7 @@ const NAV = [
     ),
   },
   {
+    key: "orders",
     to: "/orders",
     label: "Orders",
     icon: (
@@ -76,6 +94,7 @@ const NAV = [
     ),
   },
   {
+    key: "projects",
     to: "/projects",
     label: "Projects",
     icon: (
@@ -85,6 +104,7 @@ const NAV = [
     ),
   },
   {
+    key: "webhook_logs",
     to: "/webhook-logs",
     label: "Webhook Logs",
     icon: (
@@ -95,6 +115,7 @@ const NAV = [
     ),
   },
   {
+    key: "app_release",
     to: "/app-release",
     label: "App Release",
     icon: (
@@ -119,7 +140,8 @@ function initials(name) {
     .toUpperCase();
 }
 
-function SidebarContent({ user, onLogout, onNavClick }) {
+function SidebarContent({ user, hasPage, onLogout, onNavClick }) {
+  const items = NAV.filter((n) => (hasPage ? hasPage(n.key) : true));
   return (
     <>
       <div className="px-6 py-5 border-b border-white/10">
@@ -139,7 +161,7 @@ function SidebarContent({ user, onLogout, onNavClick }) {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {NAV.map((n) => (
+        {items.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
@@ -192,7 +214,7 @@ function SidebarContent({ user, onLogout, onNavClick }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPage } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -205,7 +227,7 @@ export default function Layout() {
     <div className="min-h-screen flex bg-gray-50">
       {/* Desktop sidebar — always visible on lg+ */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-brand-900 to-[#162a63] text-white flex-col z-20">
-        <SidebarContent user={user} onLogout={onLogout} onNavClick={() => {}} />
+        <SidebarContent user={user} hasPage={hasPage} onLogout={onLogout} onNavClick={() => {}} />
       </aside>
 
       {/* Mobile / tablet drawer overlay */}
@@ -223,6 +245,7 @@ export default function Layout() {
           >
             <SidebarContent
               user={user}
+              hasPage={hasPage}
               onLogout={onLogout}
               onNavClick={() => setSidebarOpen(false)}
             />

@@ -35,9 +35,9 @@ export default function Login() {
           <div className="text-xs uppercase tracking-wider text-brand-100/70">
             Retail Magic
           </div>
-          <h1 className="text-2xl font-semibold mt-1">Picker Admin Panel</h1>
+          <h1 className="text-2xl font-semibold mt-1">Prodashboard</h1>
           <p className="text-sm text-brand-100/80 mt-1">
-            Super admin access only.
+            Admin sign in
           </p>
         </div>
         <form onSubmit={onSubmit} className="p-8 space-y-4">
