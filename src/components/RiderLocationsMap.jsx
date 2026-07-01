@@ -204,7 +204,7 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
         lat,
         lng,
         kind: "rider",
-        icon: undefined, // default blue pin
+        icon: null, // default blue pin
         zIndexOffset: 1000,
         popup:
           `<strong>${loc.name}</strong> (rider)${
@@ -228,10 +228,12 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
         ).addTo(mapRef.current);
         markersRef.current.push(leg);
       }
-      const marker = L.marker([p.dLat, p.dLng], {
-        icon: p.icon,
-        zIndexOffset: p.zIndexOffset,
-      })
+      // Only pass `icon` when we have a custom one. Passing `icon: undefined`
+      // makes Leaflet skip its default-icon fallback and crash in _initIcon
+      // (undefined.createIcon()), so the key must be absent for rider pins.
+      const markerOpts = { zIndexOffset: p.zIndexOffset };
+      if (p.icon) markerOpts.icon = p.icon;
+      const marker = L.marker([p.dLat, p.dLng], markerOpts)
         .addTo(mapRef.current)
         .bindPopup(p.popup);
       markersRef.current.push(marker);
