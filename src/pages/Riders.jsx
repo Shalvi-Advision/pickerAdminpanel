@@ -4,10 +4,12 @@ import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import Pagination from "../components/Pagination.jsx";
+import { useAuth } from "../auth/AuthContext.jsx";
 
 const PER_PAGE = 20;
 
 export default function Riders() {
+  const { hasPage } = useAuth();
   const [riders, setRiders] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +65,14 @@ export default function Riders() {
         title="Riders"
         subtitle="Delivery workforce across all stores"
         actions={
-          <Link
-            to="/users"
-            className="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg"
-          >
-            + Add rider in Users
-          </Link>
+          hasPage("users") ? (
+            <Link
+              to="/users"
+              className="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg"
+            >
+              + Add rider in Users
+            </Link>
+          ) : null
         }
       />
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 max-w-7xl">
