@@ -316,6 +316,7 @@ export default function Projects() {
   const [deletingId, setDeletingId]   = useState(null);
   const [toast, setToast]             = useState("");
   const [syncing, setSyncing]         = useState(false);
+  const [search, setSearch]           = useState("");
 
   const load = () => {
     setLoading(true);
@@ -372,6 +373,16 @@ export default function Projects() {
 
   const totalStores = projects.reduce((s, p) => s + p.stores.length, 0);
 
+  // Filter by project code or any store code within the project.
+  const term = search.trim().toLowerCase();
+  const visibleProjects = term
+    ? projects.filter(
+        (p) =>
+          p.project_code.toLowerCase().includes(term) ||
+          p.stores.some((s) => s.store_code.toLowerCase().includes(term))
+      )
+    : projects;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
@@ -416,22 +427,68 @@ export default function Projects() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="mt-6 relative max-w-md">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search project or store code…"
+          className="w-full border border-gray-300 rounded-lg pl-9 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            title="Clear"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {/* Project list */}
-      <div className="mt-6 space-y-3">
+      <div className="mt-4 space-y-3">
         {loading ? (
           <Spinner />
-        ) : projects.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="text-gray-400 text-sm">No project mappings yet.</div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="mt-3 text-brand-600 text-sm font-medium hover:underline"
-            >
-              Add your first project + store
-            </button>
-          </div>
+        ) : visibleProjects.length === 0 ? (
+          term ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <div className="text-gray-400 text-sm">
+                No projects or stores match “{search}”.
+              </div>
+              <button
+                onClick={() => setSearch("")}
+                className="mt-3 text-brand-600 text-sm font-medium hover:underline"
+              >
+                Clear search
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <div className="text-gray-400 text-sm">No project mappings yet.</div>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="mt-3 text-brand-600 text-sm font-medium hover:underline"
+              >
+                Add your first project + store
+              </button>
+            </div>
+          )
         ) : (
-          projects.map((proj) => (
+          visibleProjects.map((proj) => (
             <div key={proj.project_code} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               {/* Project header */}
               <button
@@ -454,14 +511,14 @@ export default function Projects() {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  className={`h-4 w-4 text-gray-400 transition-transform ${expanded[proj.project_code] ? "rotate-180" : ""}`}
+                  className={`h-4 w-4 text-gray-400 transition-transform ${(expanded[proj.project_code] || term) ? "rotate-180" : ""}`}
                 >
                   <path d="M6 9l6 6 6-6" />
                 </svg>
               </button>
 
-              {/* Store list */}
-              {expanded[proj.project_code] && (
+              {/* Store list — force-open while searching so store matches are visible */}
+              {(expanded[proj.project_code] || term) && (
                 <div className="border-t border-gray-100">
                   {proj.stores.length === 0 ? (
                     <p className="px-5 py-4 text-xs text-gray-400">No stores in this project.</p>
