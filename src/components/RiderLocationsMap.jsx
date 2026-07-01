@@ -55,6 +55,42 @@ function num(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Markers sharing (nearly) the same coordinate stack into an unreadable pile.
+// We fan them out in a small ring around the shared point ("spiderfy") so every
+// rider/order stays clickable. Points are bucketed by a coarse rounding of their
+// lat/lng; any bucket with >1 point gets its members spread evenly on a circle.
+const SPIDER_PRECISION = 4; // ~11m grid — treats points this close as "same spot"
+const SPIDER_RADIUS = 0.00035; // ~40m fan-out radius in degrees
+
+function spiderfy(points) {
+  const buckets = new Map();
+  for (const p of points) {
+    const key = `${p.lat.toFixed(SPIDER_PRECISION)},${p.lng.toFixed(SPIDER_PRECISION)}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(p);
+  }
+  const out = [];
+  for (const group of buckets.values()) {
+    if (group.length === 1) {
+      out.push({ ...group[0], dLat: group[0].lat, dLng: group[0].lng });
+      continue;
+    }
+    // Scale the ring up a touch as the pile grows so labels don't touch.
+    const radius = SPIDER_RADIUS * (1 + (group.length - 2) * 0.12);
+    group.forEach((p, i) => {
+      const angle = (2 * Math.PI * i) / group.length;
+      // Longitude degrees shrink with latitude; correct so the ring looks circular.
+      const cos = Math.cos((p.lat * Math.PI) / 180) || 1;
+      out.push({
+        ...p,
+        dLat: p.lat + radius * Math.sin(angle),
+        dLng: p.lng + (radius * Math.cos(angle)) / cos,
+      });
+    });
+  }
+  return out;
+}
+
 /**
  * Live map showing rider GPS positions AND the order/delivery locations.
  * @param {{
@@ -134,7 +170,10 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
     markersRef.current = [];
     const bounds = [];
 
-    // --- Order / delivery-location markers ---
+    // Collect every point (orders + riders) into one list so overlapping pins of
+    // any type get fanned out together, then spiderfy the whole set at once.
+    const points = [];
+
     for (const o of orders) {
       const lat = num(o.latitude);
       const lng = num(o.longitude);
@@ -142,33 +181,61 @@ export default function RiderLocationsMap({ locations, orders = [] }) {
       const color = STATUS_COLOR[o.delivery_status] || "#6b7280";
       const rider = o.current_delivery_assignment?.rider_id;
       const stop = o.current_delivery_assignment?.stop_sequence;
-      const marker = L.marker([lat, lng], { icon: orderIcon(color) })
-        .addTo(mapRef.current)
-        .bindPopup(
+      points.push({
+        lat,
+        lng,
+        kind: "order",
+        icon: orderIcon(color),
+        zIndexOffset: 0,
+        popup:
           `<strong>Order #${o.orders_idorders}</strong>` +
-            `<br/><span style="color:${color}">${(o.delivery_status || "").replace(/_/g, " ")}</span>` +
-            (o.store_code ? `<br/>Store: ${o.store_code}` : "") +
-            (rider?.name ? `<br/>Rider: ${rider.name}${stop ? ` (stop ${stop})` : ""}` : "") +
-            (o.delivery_details ? `<br/>${o.delivery_details}` : "")
-        );
-      markersRef.current.push(marker);
-      bounds.push([lat, lng]);
+          `<br/><span style="color:${color}">${(o.delivery_status || "").replace(/_/g, " ")}</span>` +
+          (o.store_code ? `<br/>Store: ${o.store_code}` : "") +
+          (rider?.name ? `<br/>Rider: ${rider.name}${stop ? ` (stop ${stop})` : ""}` : "") +
+          (o.delivery_details ? `<br/>${o.delivery_details}` : ""),
+      });
     }
 
-    // --- Rider GPS markers (default blue pin, drawn on top) ---
     for (const loc of locations) {
       const lat = num(loc.last_location?.latitude);
       const lng = num(loc.last_location?.longitude);
       if (lat == null || lng == null) continue;
-      const marker = L.marker([lat, lng], { zIndexOffset: 1000 })
-        .addTo(mapRef.current)
-        .bindPopup(
+      points.push({
+        lat,
+        lng,
+        kind: "rider",
+        icon: undefined, // default blue pin
+        zIndexOffset: 1000,
+        popup:
           `<strong>${loc.name}</strong> (rider)${
             loc.active_orders?.length ? `<br/>Orders: #${loc.active_orders.join(", #")}` : ""
-          }`
-        );
+          }`,
+      });
+    }
+
+    const spread = spiderfy(points);
+    for (const p of spread) {
+      const displaced = p.dLat !== p.lat || p.dLng !== p.lng;
+      // Thin "leg" from the real coordinate to the displaced pin makes it obvious
+      // the fanned-out markers actually share one location.
+      if (displaced) {
+        const leg = L.polyline(
+          [
+            [p.lat, p.lng],
+            [p.dLat, p.dLng],
+          ],
+          { color: "#94a3b8", weight: 1, opacity: 0.7, interactive: false }
+        ).addTo(mapRef.current);
+        markersRef.current.push(leg);
+      }
+      const marker = L.marker([p.dLat, p.dLng], {
+        icon: p.icon,
+        zIndexOffset: p.zIndexOffset,
+      })
+        .addTo(mapRef.current)
+        .bindPopup(p.popup);
       markersRef.current.push(marker);
-      bounds.push([lat, lng]);
+      bounds.push([p.lat, p.lng]);
     }
 
     if (bounds.length > 1) {

@@ -132,7 +132,7 @@ function SidebarContent({ user, onLogout, onNavClick }) {
               Retail Magic
             </div>
             <div className="text-base font-semibold leading-tight mt-0.5">
-              Picker Admin
+              Prodashboard
             </div>
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function Layout() {
               🛒
             </div>
             <span className="font-semibold text-gray-900 text-sm">
-              Picker Admin
+              Prodashboard
             </span>
           </div>
         </header>

@@ -33,22 +33,25 @@ function fmtWhen(d) {
 
 export default function Deliveries() {
   const [rows, setRows] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("");
+  const [projectCode, setProjectCode] = useState("");
   const [storeCode, setStoreCode] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliverySlot, setDeliverySlot] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [locations, setLocations] = useState([]);
 
   useEffect(() => {
     setPage(1);
-  }, [tab, storeCode, deliveryDate, deliverySlot]);
+  }, [tab, projectCode, storeCode, deliveryDate, deliverySlot, search]);
 
   useEffect(() => {
-    api.get("/super-admin/stores").then((r) => setStores(r.data.data || [])).catch(() => {});
+    api.get("/super-admin/projects").then((r) => setProjects(r.data.data || [])).catch(() => {});
     const loadLocs = () =>
       api.get("/super-admin/riders/locations").then((r) => setLocations(r.data.data || [])).catch(() => {});
     loadLocs();
@@ -56,15 +59,24 @@ export default function Deliveries() {
     return () => clearInterval(id);
   }, []);
 
+  // Reload stores and clear store selection when project changes
+  useEffect(() => {
+    setStoreCode("");
+    const params = projectCode ? { project_code: projectCode } : {};
+    api.get("/super-admin/stores", { params }).then((r) => setStores(r.data.data || [])).catch(() => {});
+  }, [projectCode]);
+
   async function load() {
     setLoading(true);
     setErr("");
     try {
       const params = {};
       if (tab) params.delivery_status = tab;
+      if (projectCode) params.project_code = projectCode;
       if (storeCode) params.store_code = storeCode;
       if (deliveryDate) params.delivery_date = deliveryDate;
       if (deliverySlot.trim()) params.delivery_slot = deliverySlot.trim();
+      if (search.trim()) params.order_id = search.trim();
       const r = await api.get("/super-admin/deliveries", { params });
       setRows(r.data.data || []);
     } catch (e) {
@@ -77,7 +89,7 @@ export default function Deliveries() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, storeCode, deliveryDate, deliverySlot]);
+  }, [tab, projectCode, storeCode, deliveryDate, deliverySlot, search]);
 
   const paged = useMemo(
     () => rows.slice((page - 1) * PER_PAGE, page * PER_PAGE),
@@ -164,6 +176,19 @@ export default function Deliveries() {
 
         <div className="flex flex-wrap gap-3 items-end">
           <div>
+            <label className="text-xs text-gray-500">Project</label>
+            <select
+              value={projectCode}
+              onChange={(e) => setProjectCode(e.target.value)}
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="">All projects</option>
+              {projects.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="text-xs text-gray-500">Store</label>
             <select
               value={storeCode}
@@ -192,6 +217,15 @@ export default function Deliveries() {
               onChange={(e) => setDeliverySlot(e.target.value)}
               placeholder="10:00-12:00"
               className="block mt-1 border rounded-md px-2 py-1.5 text-sm w-36"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Search Order #</label>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Order ID…"
+              className="block mt-1 border rounded-md px-2 py-1.5 text-sm w-40"
             />
           </div>
         </div>
