@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
+import { useAuth } from "../auth/AuthContext.jsx";
 
 const ICONS = {
   users: (
@@ -102,24 +103,35 @@ function QuickAction({ to, title, desc, icon, accent }) {
 }
 
 export default function Dashboard() {
+  const { hasPage } = useAuth();
+  const canSeeUsers = hasPage("users");
   const [kpis, setKpis] = useState(null);
   const [counts, setCounts] = useState({ users: 0, orders: 0 });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    Promise.all([
+    // Settle each call independently — a project_admin can't hit /users, but the
+    // rest of the dashboard should still render instead of erroring out.
+    const calls = [
       api.get("/super-admin/dashboard"),
-      api.get("/super-admin/users"),
       api.get("/super-admin/all-orders"),
-    ])
-      .then(([k, u, o]) => {
-        setKpis(k.data.data);
-        setCounts({ users: u.data.data.length, orders: o.data.data.length });
+      canSeeUsers ? api.get("/super-admin/users") : Promise.resolve(null),
+    ];
+    Promise.allSettled(calls)
+      .then(([kR, oR, uR]) => {
+        if (kR.status === "fulfilled") setKpis(kR.value.data.data);
+        setCounts({
+          users: uR.status === "fulfilled" && uR.value ? uR.value.data.data.length : 0,
+          orders: oR.status === "fulfilled" ? oR.value.data.data.length : 0,
+        });
+        // Only surface an error if the core KPI call actually failed.
+        if (kR.status === "rejected") {
+          setErr(kR.reason?.response?.data?.message || kR.reason?.message || "Failed to load");
+        }
       })
-      .catch((e) => setErr(e.response?.data?.message || e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [canSeeUsers]);
 
   return (
     <>
@@ -147,14 +159,16 @@ export default function Dashboard() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Kpi
-            label="Total Users"
-            value={counts.users}
-            hint="pickers, managers, riders, admins"
-            icon="users"
-            accent="indigo"
-            loading={loading}
-          />
+          {canSeeUsers && (
+            <Kpi
+              label="Total Users"
+              value={counts.users}
+              hint="pickers, managers, riders, admins"
+              icon="users"
+              accent="indigo"
+              loading={loading}
+            />
+          )}
           <Kpi
             label="Total Orders"
             value={counts.orders}
@@ -238,27 +252,33 @@ export default function Dashboard() {
               from one place. Pick a shortcut below to jump straight in.
             </p>
             <div className="mt-5 grid sm:grid-cols-2 gap-3">
-              <QuickAction
-                to="/users"
-                title="Manage Users"
-                desc="Add or remove team members"
-                icon="users"
-                accent="indigo"
-              />
-              <QuickAction
-                to="/riders"
-                title="View Riders"
-                desc="Delivery workforce & load"
-                icon="delivery"
-                accent="emerald"
-              />
-              <QuickAction
-                to="/orders?delivery_status=ready_for_delivery"
-                title="Ready to deliver"
-                desc="Assign riders to picked orders"
-                icon="orders"
-                accent="amber"
-              />
+              {canSeeUsers && (
+                <QuickAction
+                  to="/users"
+                  title="Manage Users"
+                  desc="Add or remove team members"
+                  icon="users"
+                  accent="indigo"
+                />
+              )}
+              {hasPage("riders") && (
+                <QuickAction
+                  to="/riders"
+                  title="View Riders"
+                  desc="Delivery workforce & load"
+                  icon="delivery"
+                  accent="emerald"
+                />
+              )}
+              {hasPage("orders") && (
+                <QuickAction
+                  to="/orders?delivery_status=ready_for_delivery"
+                  title="Ready to deliver"
+                  desc="Assign riders to picked orders"
+                  icon="orders"
+                  accent="amber"
+                />
+              )}
             </div>
           </div>
 
