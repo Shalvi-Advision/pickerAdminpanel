@@ -110,8 +110,18 @@ function RiderCard({ loc }) {
   );
 }
 
+const RIDER_GPS_COLLAPSE_KEY = "deliveriesRiderGpsCollapsed";
+
 function LiveRiderGPS({ locations }) {
   const [q, setQ] = useState("");
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem(RIDER_GPS_COLLAPSE_KEY) === "1"
+  );
+
+  useEffect(() => {
+    localStorage.setItem(RIDER_GPS_COLLAPSE_KEY, collapsed ? "1" : "0");
+  }, [collapsed]);
+
   const term = q.trim().toLowerCase();
   const filtered = term
     ? locations.filter(
@@ -123,11 +133,17 @@ function LiveRiderGPS({ locations }) {
 
   return (
     <div className="bg-white rounded-xl border p-4">
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hover:text-gray-700"
+          title={collapsed ? "Expand" : "Collapse"}
+        >
+          <span className="text-gray-400">{collapsed ? "▸" : "▾"}</span>
           Live rider GPS ({locations.length})
-        </div>
-        {locations.length > 6 && (
+        </button>
+        {!collapsed && locations.length > 6 && (
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -137,17 +153,18 @@ function LiveRiderGPS({ locations }) {
         )}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="text-sm text-gray-500 py-4 text-center">
-          No riders match “{q}”.
-        </div>
-      ) : (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-h-80 overflow-y-auto pr-1">
-          {filtered.map((loc) => (
-            <RiderCard key={loc.rider_id} loc={loc} />
-          ))}
-        </div>
-      )}
+      {!collapsed &&
+        (filtered.length === 0 ? (
+          <div className="text-sm text-gray-500 py-4 text-center">
+            No riders match “{q}”.
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-h-80 overflow-y-auto pr-1 mt-3">
+            {filtered.map((loc) => (
+              <RiderCard key={loc.rider_id} loc={loc} />
+            ))}
+          </div>
+        ))}
     </div>
   );
 }
