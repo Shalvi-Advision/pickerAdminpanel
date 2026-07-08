@@ -9,18 +9,21 @@ const EVENT_TYPES = [
   { value: "order_receive", label: "New order" },
   { value: "order_cancel", label: "Cancel order" },
   { value: "order_assign_rider", label: "Assign rider" },
+  { value: "rider_delivered", label: "Delivered sync" },
 ];
 
 const EVENT_LABELS = {
   order_receive: "New order",
   order_cancel: "Cancel",
   order_assign_rider: "Assign rider",
+  rider_delivered: "Delivered sync",
 };
 
 const EVENT_STYLE = {
   order_receive: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
   order_cancel: "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
   order_assign_rider: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
+  rider_delivered: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
 };
 
 const LIMIT = 100;
@@ -76,6 +79,20 @@ function MetadataDetail({ log }) {
           <span>Rider assignments cancelled: <strong>{m.delivery_assignments_cancelled ?? 0}</strong></span>
           <span>Routes updated: <strong>{m.routes_updated ?? 0}</strong></span>
         </div>
+      </div>
+    );
+  }
+
+  if (log.event_type === "rider_delivered") {
+    return (
+      <div className="space-y-1 text-xs text-gray-700">
+        <div>
+          <span className="font-medium text-gray-500">Outgoing sync attempt:</span>{" "}
+          {m.attempt ?? "?"} of {m.max_attempts ?? "?"}
+        </div>
+        {m.api_url && (
+          <div className="font-mono text-gray-500">{m.api_url}</div>
+        )}
       </div>
     );
   }
@@ -163,7 +180,7 @@ export default function WebhookLogs() {
     <>
       <PageHeader
         title="Webhook Logs"
-        subtitle="Inbound webhooks: new order, cancel order, assign rider"
+        subtitle="Inbound webhooks (new order, cancel, assign rider) and outgoing delivered-status syncs"
         actions={
           <button
             onClick={() => load(skip)}
