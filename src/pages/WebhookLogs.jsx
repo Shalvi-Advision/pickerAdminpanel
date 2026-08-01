@@ -121,6 +121,29 @@ function MetadataDetail({ log }) {
   );
 }
 
+function PayloadDetail({ payload }) {
+  if (!payload || typeof payload !== "object") return null;
+  const { items, items_total, items_truncated } = payload;
+  const shownItems = Array.isArray(items) ? items.length : 0;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-gray-500">Request payload</span>
+        {items_total != null && (
+          <span className="text-gray-500">
+            · {items_total} item{items_total === 1 ? "" : "s"} received
+            {items_truncated ? ` (showing first ${shownItems})` : ""}
+          </span>
+        )}
+      </div>
+      <pre className="text-xs text-gray-600 whitespace-pre-wrap bg-white border rounded-md p-2 max-h-96 overflow-auto">
+{JSON.stringify(payload, null, 2)}
+      </pre>
+    </div>
+  );
+}
+
 export default function WebhookLogs() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
@@ -368,7 +391,8 @@ export default function WebhookLogs() {
                                   <span>{log.assign_error}</span>
                                 </div>
                               )}
-                              {!log.error_message && !log.assign_error && !log.metadata && (
+                              {log.payload && <PayloadDetail payload={log.payload} />}
+                              {!log.error_message && !log.assign_error && !log.metadata && !log.payload && (
                                 <span className="text-gray-400">No extra details.</span>
                               )}
                             </div>
