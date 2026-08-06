@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
@@ -87,6 +87,12 @@ function itemStatus(it) {
 
 export default function OrderDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  // Order ids are unique per project only — the list passes project_code (and
+  // store_code) so the detail fetch resolves the RIGHT order when the same id
+  // exists in multiple projects/stores.
+  const projectCode = searchParams.get("project_code") || "";
+  const storeCode = searchParams.get("store_code") || "";
   const [items, setItems] = useState([]);
   const [delivery, setDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,17 +101,18 @@ export default function OrderDetail() {
   useEffect(() => {
     setLoading(true);
     setErr("");
+    const params = projectCode ? { project_code: projectCode } : {};
     api
-      .get(`/super-admin/orders/${id}/delivery`)
+      .get(`/super-admin/orders/${id}/delivery`, { params })
       .then((r) => setDelivery(r.data.data))
       .catch((e) => setErr(e.response?.data?.message || e.message));
 
     api
-      .get(`/super-admin/orders/${id}/items`)
+      .get(`/super-admin/orders/${id}/items`, { params })
       .then((r) => setItems(r.data.data || []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, projectCode]);
 
   const totalAmount = items.reduce(
     (sum, it) => sum + Number(it.total_amt_our_price || 0),
@@ -123,7 +130,16 @@ export default function OrderDetail() {
     <>
       <PageHeader
         title={`Order #${id}`}
-        subtitle="Picking items & delivery status"
+        subtitle={
+          [
+            (order?.project_code || projectCode) &&
+              `Project ${order?.project_code || projectCode}`,
+            (order?.store_code || storeCode) &&
+              `Store ${order?.store_code || storeCode}`,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "Picking items & delivery status"
+        }
         actions={
           <Link
             to="/orders"

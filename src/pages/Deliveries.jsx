@@ -7,6 +7,15 @@ import Pagination from "../components/Pagination.jsx";
 import RiderLocationsMap from "../components/RiderLocationsMap.jsx";
 import { osmPointUrl } from "../utils/osmLinks.js";
 
+// Order ids are unique per project only — always carry project_code/store_code
+// so the detail page resolves the RIGHT order when the same id spans projects.
+function orderDetailPath(o) {
+  const id = o.orders_idorders ?? o;
+  const project = o.project_code || "";
+  const store = o.store_code || "";
+  return `/orders/${id}?project_code=${encodeURIComponent(project)}&store_code=${encodeURIComponent(store)}`;
+}
+
 const TABS = [
   { key: "", label: "All" },
   { key: "ready", label: "Ready" },
@@ -87,13 +96,13 @@ function RiderCard({ loc }) {
 
       {orders.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {shown.map((id) => (
+          {shown.map((o) => (
             <Link
-              key={id}
-              to={`/orders/${id}`}
+              key={`${o.project_code || ""}-${o.orders_idorders ?? o}`}
+              to={orderDetailPath(o)}
               className="text-[11px] px-1.5 py-0.5 rounded bg-white border text-brand-600 hover:bg-brand-50"
             >
-              #{id}
+              #{o.orders_idorders ?? o}
             </Link>
           ))}
           {extra > 0 && (
@@ -374,7 +383,7 @@ export default function Deliveries() {
                     <tr key={o.orders_idorders} className="border-t hover:bg-gray-50">
                       <td className="px-4 py-2.5">
                         <Link
-                          to={`/orders/${o.orders_idorders}`}
+                          to={orderDetailPath(o)}
                           className="font-medium text-brand-600 hover:underline"
                         >
                           #{o.orders_idorders}

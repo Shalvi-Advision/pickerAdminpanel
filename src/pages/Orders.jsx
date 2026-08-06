@@ -286,7 +286,7 @@ export default function Orders() {
                       </td>
                       <td className="px-4 py-2 text-right">
                         <Link
-                          to={`/orders/${o.orders_idorders}`}
+                          to={`/orders/${o.orders_idorders}?project_code=${encodeURIComponent(o.project_code || "")}&store_code=${encodeURIComponent(o.store_code || "")}`}
                           className="text-brand-600 hover:underline text-sm"
                         >
                           View
