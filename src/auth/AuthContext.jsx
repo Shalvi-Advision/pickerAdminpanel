@@ -92,6 +92,7 @@ export function AuthProvider({ children }) {
         allowedPages,
         hasPage,
         firstPagePath,
+        isSuperAdmin,
       }}
     >
       {children}

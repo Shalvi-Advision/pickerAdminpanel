@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import api from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import Badge from "../components/Badge.jsx";
 import { osmPointUrl } from "../utils/osmLinks.js";
+import { useAuth } from "../auth/AuthContext.jsx";
 
 function money(v) {
   if (v == null || v === "") return "—";
@@ -88,6 +89,8 @@ function itemStatus(it) {
 export default function OrderDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
   // Order ids are unique per project only — the list passes project_code (and
   // store_code) so the detail fetch resolves the RIGHT order when the same id
   // exists in multiple projects/stores.
@@ -97,6 +100,7 @@ export default function OrderDetail() {
   const [delivery, setDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -120,6 +124,32 @@ export default function OrderDetail() {
   );
 
   const order = delivery?.order;
+
+  async function handleDelete() {
+    // Prefer the loaded order's project (authoritative); fall back to the query param.
+    const project = order?.project_code || projectCode;
+    if (!project) {
+      setErr("Cannot delete: project_code is unknown for this order.");
+      return;
+    }
+    const label = `#${id}${order?.store_code || storeCode ? ` · ${order?.store_code || storeCode}` : ""} · ${project}`;
+    if (
+      !window.confirm(
+        `Permanently delete order ${label} and ALL its items, picker & delivery assignments?\n\nThis cannot be undone.`
+      )
+    )
+      return;
+
+    setDeleting(true);
+    setErr("");
+    try {
+      await api.delete(`/super-admin/orders/${id}`, { params: { project_code: project } });
+      navigate("/orders", { replace: true });
+    } catch (e) {
+      setErr(e.response?.data?.message || e.message);
+      setDeleting(false);
+    }
+  }
   const da = delivery?.delivery_assignment;
   const pod = da?.proof_of_delivery;
   const rider = da?.rider_id;
@@ -141,12 +171,24 @@ export default function OrderDetail() {
             .join(" · ") || "Picking items & delivery status"
         }
         actions={
-          <Link
-            to="/orders"
-            className="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg"
-          >
-            ← Back to orders
-          </Link>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting || loading}
+                className="text-sm border border-red-200 text-red-700 bg-white hover:bg-red-50 px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Deleting…" : "Delete order"}
+              </button>
+            )}
+            <Link
+              to="/orders"
+              className="text-sm border bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg"
+            >
+              ← Back to orders
+            </Link>
+          </div>
         }
       />
       <div className="p-4 sm:p-6 lg:p-8 space-y-4 max-w-7xl">
